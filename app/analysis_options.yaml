@@ -1,0 +1,17 @@
+include: package:very_good_analysis/analysis_options.yaml
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+
+linter:
+  rules:
+    public_member_api_docs: false
+    # Strategy/Repository/Command patterns are mandated by the architecture
+    # and naturally produce small, single-method interfaces — that's the
+    # point (ISP), not a smell to collapse into a top-level function.
+    one_member_abstracts: false
+    # The `flutter: sdk: flutter` entry always sits first by ecosystem
+    # convention, which this rule doesn't account for.
+    sort_pub_dependencies: false

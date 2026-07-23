@@ -1,0 +1,78 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:bb_block/core/services/ads/ads_service.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+
+/// Uses Google's public AdMob **test** ad unit IDs by default — safe to ship
+/// in development builds, but must be replaced with real ad unit IDs (from
+/// the AdMob console) before any store submission.
+final class AdMobAdsService implements AdsService {
+  AdMobAdsService({
+    String? androidRewardedAdUnitId,
+    String? iosRewardedAdUnitId,
+  })  : _androidRewardedAdUnitId =
+            androidRewardedAdUnitId ?? _testAndroidRewardedAdUnitId,
+        _iosRewardedAdUnitId = iosRewardedAdUnitId ?? _testIosRewardedAdUnitId;
+
+  static const String _testAndroidRewardedAdUnitId =
+      'ca-app-pub-3940256099942544/5224354917';
+  static const String _testIosRewardedAdUnitId =
+      'ca-app-pub-3940256099942544/1712485313';
+
+  final String _androidRewardedAdUnitId;
+  final String _iosRewardedAdUnitId;
+
+  RewardedAd? _rewardedAd;
+
+  String get _rewardedAdUnitId =>
+      Platform.isIOS ? _iosRewardedAdUnitId : _androidRewardedAdUnitId;
+
+  @override
+  Future<void> init() async {
+    await MobileAds.instance.initialize();
+    unawaited(_loadRewardedAd());
+  }
+
+  @override
+  bool get isRewardedAdReady => _rewardedAd != null;
+
+  @override
+  Future<void> showRewardedAd({
+    required void Function() onRewardEarned,
+  }) async {
+    final ad = _rewardedAd;
+    if (ad == null) {
+      unawaited(_loadRewardedAd());
+      return;
+    }
+
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (dismissedAd) {
+        unawaited(dismissedAd.dispose());
+        _rewardedAd = null;
+        unawaited(_loadRewardedAd());
+      },
+      onAdFailedToShowFullScreenContent: (failedAd, error) {
+        unawaited(failedAd.dispose());
+        _rewardedAd = null;
+        unawaited(_loadRewardedAd());
+      },
+    );
+
+    await ad.show(
+      onUserEarnedReward: (_, _) => onRewardEarned(),
+    );
+  }
+
+  Future<void> _loadRewardedAd() async {
+    await RewardedAd.load(
+      adUnitId: _rewardedAdUnitId,
+      request: const AdRequest(),
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
+        onAdLoaded: (ad) => _rewardedAd = ad,
+        onAdFailedToLoad: (_) => _rewardedAd = null,
+      ),
+    );
+  }
+}
