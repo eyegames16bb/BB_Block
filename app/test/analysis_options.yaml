@@ -1,0 +1,9 @@
+# Inherits the project's strict rules, but relaxes a couple that fight
+# test readability. Production code under lib/ still uses the full rule set.
+include: ../analysis_options.yaml
+
+linter:
+  rules:
+    # Sequential engine calls (place, then place, then assert) read more
+    # clearly as separate statements than as a forced cascade.
+    cascade_invocations: false

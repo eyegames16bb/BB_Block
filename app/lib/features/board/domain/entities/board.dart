@@ -1,6 +1,7 @@
 import 'package:bb_block/core/constants/app_constants.dart';
 import 'package:bb_block/features/board/domain/entities/cell_state.dart';
 import 'package:bb_block/features/board/domain/entities/grid_position.dart';
+import 'package:bb_block/features/board/domain/entities/piece_shape.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'board.freezed.dart';
@@ -42,4 +43,27 @@ abstract class Board with _$Board {
       position.column < size;
 
   CellState cellAt(GridPosition position) => cells[indexOf(position)];
+
+  bool get hasFrame => cells.contains(CellState.frame);
+
+  /// Returns a copy with [shape]'s cells (anchored at [anchor]) marked filled.
+  /// Assumes the placement is already validated — callers must run
+  /// `PlacementValidator.canPlace` first.
+  Board place(PieceShape shape, GridPosition anchor) {
+    final updatedCells = List<CellState>.from(cells);
+    for (final offset in shape.cells) {
+      updatedCells[indexOf(anchor.offsetBy(offset))] = CellState.filled;
+    }
+    return copyWith(cells: updatedCells);
+  }
+
+  /// Converts every [CellState.frame] cell back to [CellState.empty] — the
+  /// Level Mode frame teardown at 900 points. Filled cells are untouched.
+  Board withFrameRemoved() {
+    final updatedCells = [
+      for (final cell in cells)
+        if (cell == CellState.frame) CellState.empty else cell,
+    ];
+    return copyWith(cells: updatedCells);
+  }
 }

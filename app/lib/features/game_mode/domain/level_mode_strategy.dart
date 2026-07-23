@@ -1,4 +1,5 @@
 import 'package:bb_block/core/constants/app_constants.dart';
+import 'package:bb_block/features/board/domain/entities/board.dart';
 import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
 import 'package:bb_block/features/game_mode/domain/round_outcome.dart';
 import 'package:bb_block/features/scoring/domain/level_scoring_strategy.dart';
@@ -12,6 +13,13 @@ final class LevelModeStrategy implements GameModeStrategy {
 
   @override
   GameModeType get type => GameModeType.level;
+
+  @override
+  Board createInitialBoard() => Board.framed();
+
+  @override
+  bool shouldRemoveFrameAt(int score) =>
+      score >= LevelModeConstants.frameRemovalThreshold;
 
   @override
   RoundOutcome evaluateOutcome({
