@@ -1,5 +1,9 @@
+import 'package:bb_block/core/routing/app_router.dart';
 import 'package:bb_block/core/theme/app_theme.dart';
+import 'package:bb_block/features/game/application/game_launch_config.dart';
+import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -34,12 +38,70 @@ class HomeScreen extends StatelessWidget {
                 style: Theme.of(context).textTheme.displayMedium,
               ),
               const Spacer(),
-              _ModeButton(label: 'Level Mod', onTap: () {}),
+              _ModeButton(
+                label: 'Level Mod',
+                onTap: () => context.push(
+                  AppRoutes.game,
+                  extra: const GameLaunchConfig(mode: GameModeType.level),
+                ),
+              ),
               const SizedBox(height: 12),
-              _ModeButton(label: 'Klasik Mod', onTap: () {}),
+              _ModeButton(
+                label: 'Klasik Mod',
+                onTap: () => _startClassic(context),
+              ),
               const SizedBox(height: 12),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _startClassic(BuildContext context) async {
+    final hasFrame = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: AppColors.paper,
+      builder: (context) => const _FrameChoiceSheet(),
+    );
+    if (hasFrame == null || !context.mounted) return;
+
+    await context.push(
+      AppRoutes.game,
+      extra: GameLaunchConfig(
+        mode: GameModeType.classic,
+        classicHasFrame: hasFrame,
+      ),
+    );
+  }
+}
+
+class _FrameChoiceSheet extends StatelessWidget {
+  const _FrameChoiceSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Çerçeve',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 16),
+            _ModeButton(
+              label: 'Çerçeve VAR',
+              onTap: () => Navigator.of(context).pop(true),
+            ),
+            const SizedBox(height: 12),
+            _ModeButton(
+              label: 'Çerçeve YOK',
+              onTap: () => Navigator.of(context).pop(false),
+            ),
+          ],
         ),
       ),
     );

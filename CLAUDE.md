@@ -38,12 +38,15 @@ lib/
     scoring/domain           — Strategy Pattern: ClassicScoringStrategy / LevelScoringStrategy
     game_mode/domain         — Strategy Pattern: GameModeStrategy + RoundOutcome
     game_state/domain        — State Machine: GameState (Freezed sealed union)
+    game_engine/domain       — Orkestrasyon: GameEngine + GameSession + GameEvent (saf Dart)
     booster/domain           — Command Pattern: Rotate/Swap/SingleCellRemove
     persistence/              — Repository Pattern: GameSaveRepository arayüzü + local impl
-    home/presentation         — ilk ekran (placeholder)
+    game/application          — GameController (Riverpod Notifier) + GameLaunchConfig
+    game/presentation         — GameScreen + BoardGrid/PieceTray/PieceView (oynanabilir döngü)
+    home/presentation         — ana menü (mod seçimi + Çerçeve VAR/YOK diyaloğu)
 ```
 
-Engine (board/scoring/piece_generation/booster) UI'dan tamamen bağımsız — hiçbir dosya `flutter/material.dart` import etmiyor, `home/presentation` hariç. Bu ayrım korunmalı.
+Engine (board/scoring/piece_generation/booster/game_engine) UI'dan tamamen bağımsız — bu dosyaların hiçbiri `flutter/*` import etmez, yalnızca `application`/`presentation` katmanları eder. Bu ayrım korunmalı. UI, `GameController` üzerinden yalnızca `GameSession` state'ini okur ve intent metodları çağırır; kurallar widget katmanına sızmaz.
 
 ## Alınan mimari kararlar (kod yazılmadan önce netleşti)
 
@@ -63,7 +66,10 @@ Engine (board/scoring/piece_generation/booster) UI'dan tamamen bağımsız — h
 - Ses/görsel/font varlıkları henüz yok. `AudioService` implementasyonu `assets/audio/sfx/*.mp3` ve `assets/audio/ambient/background_loop.mp3` bekliyor — dosyalar eklenmeden `pubspec.yaml`'a asset kaydı yapılmadı.
 - Org kimliği `com.bbblock` yer tutucudur — mağaza gönderiminden önce gerçek ters-domain ile değiştirilmeli (`app/android`, `app/ios` proje ayarları).
 - Android SDK cmdline-tools eksik, lisanslar kabul edilmedi (`flutter doctor` bunu gösteriyor) — cihazda/emülatörde çalıştırmadan önce tamamlanmalı.
-- Git kullanıcı adı/e-postası hiç tanımlanmamış — ilk commit için gerekiyor.
+- Git kimliği bu depoya özel ayarlandı (`digitalsynclab-cpu` / `digitalsynclab@gmail.com`); henüz uzak depo (GitHub vb.) yok.
+- **Booster UI yok**: Engine `rotatePiece`/`swapTray`/`removeCell` destekliyor ve `GameController` bunları açıyor, ama oyun ekranında henüz buton/etkileşim tasarlanmadı. Charge sayımı da app katmanında henüz yok (engine charge-agnostik).
+- **Ses/haptik/animasyon henüz bağlı değil**: `GameController._apply` içindeki `events` şu an tüketilmiyor (yorumla işaretli extension point). UI tamamen `GameSession` state'iyle sürülüyor. Frame Destroy / line-clear animasyonları bekliyor.
+- **Sürükle-bırak v1**: Parçanın (0,0) hücresi işaretçinin altındaki hücreye çapalanıyor (`pointerDragAnchorStrategy`) ve şekil tahtada kalacak şekilde clamp'leniyor. Kullanışlı ama parmağın altında kalıyor; ileride yukarı ofset/geliştirme yapılabilir.
 
 ## Komutlar
 
