@@ -40,7 +40,8 @@ lib/
     game_state/domain        — State Machine: GameState (Freezed sealed union)
     game_engine/domain       — Orkestrasyon: GameEngine + GameSession + GameEvent (saf Dart)
     booster/domain           — Command Pattern: Rotate/Swap/SingleCellRemove
-    persistence/              — Repository Pattern: GameSaveRepository arayüzü + local impl
+    persistence/domain+data   — Repository Pattern: GameSaveRepository + local (SharedPreferences) impl
+    persistence/application    — PlayerProgressController (yüksek skor/level/altın anahtar, kalıcı)
     game/application          — GameController (Riverpod Notifier) + GameLaunchConfig
     game/presentation         — GameScreen + BoardGrid/PieceTray/PieceView (oynanabilir döngü)
     home/presentation         — ana menü (mod seçimi + Çerçeve VAR/YOK diyaloğu)
@@ -76,7 +77,7 @@ Engine (board/scoring/piece_generation/booster/game_engine) UI'dan tamamen bağ�
 ```bash
 cd app
 flutter pub get
-dart run build_runner build --delete-conflicting-outputs   # .freezed.dart / .g.dart üretimi
+dart run build_runner build   # .freezed.dart / .g.dart üretimi (--delete-conflicting-outputs artık gerekmiyor)
 flutter analyze
 flutter test
 ```

@@ -2,14 +2,21 @@ import 'package:bb_block/core/routing/app_router.dart';
 import 'package:bb_block/core/theme/app_theme.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
 import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
+import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
+import 'package:bb_block/features/persistence/domain/player_progress.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progress =
+        ref.watch(playerProgressControllerProvider).value ??
+            const PlayerProgress();
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -26,7 +33,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   _TopChip(
                     icon: Icons.vpn_key_outlined,
-                    label: '0',
+                    label: '${progress.goldKeyCount}',
                     onTap: () {},
                   ),
                 ],
@@ -37,6 +44,8 @@ class HomeScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.displayMedium,
               ),
+              const SizedBox(height: 12),
+              _BestScores(progress: progress),
               const Spacer(),
               _ModeButton(
                 label: 'Level Mod',
@@ -72,6 +81,30 @@ class HomeScreen extends StatelessWidget {
         mode: GameModeType.classic,
         classicHasFrame: hasFrame,
       ),
+    );
+  }
+}
+
+class _BestScores extends StatelessWidget {
+  const _BestScores({required this.progress});
+
+  final PlayerProgress progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      color: AppColors.ink.withValues(alpha: 0.7),
+      fontSize: 14,
+    );
+
+    return Column(
+      children: [
+        Text('En İyi (Çerçeveli): ${progress.classicHighScoreFramed}',
+            style: style),
+        Text('En İyi (Çerçevesiz): ${progress.classicHighScoreFrameless}',
+            style: style),
+        Text('Level: ${progress.currentLevel}', style: style),
+      ],
     );
   }
 }

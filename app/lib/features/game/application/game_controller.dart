@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bb_block/features/board/domain/entities/grid_position.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
 import 'package:bb_block/features/game_engine/domain/game_engine.dart';
@@ -6,6 +8,8 @@ import 'package:bb_block/features/game_engine/domain/game_session.dart';
 import 'package:bb_block/features/game_mode/domain/classic_mode_strategy.dart';
 import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
 import 'package:bb_block/features/game_mode/domain/level_mode_strategy.dart';
+import 'package:bb_block/features/game_mode/domain/round_outcome.dart';
+import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
 import 'package:bb_block/features/piece_generation/domain/weighted_piece_generator.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -19,9 +23,11 @@ part 'game_controller.g.dart';
 @riverpod
 class GameController extends _$GameController {
   late final GameEngine _engine;
+  late final GameLaunchConfig _config;
 
   @override
   GameSession build(GameLaunchConfig config) {
+    _config = config;
     _engine = GameEngine(
       mode: _strategyFor(config),
       generator: WeightedPieceGenerator(),
@@ -42,9 +48,31 @@ class GameController extends _$GameController {
 
   void _apply(List<GameEvent> events) {
     state = _engine.session;
+    if (events.any((event) => event is GameEventRoundEnded)) {
+      _recordOutcome();
+    }
     // Extension point: audio, haptics and animation systems will consume
     // `events` here once those systems land. Today the UI is driven purely
     // by the republished session state.
+  }
+
+  void _recordOutcome() {
+    final progress = ref.read(playerProgressControllerProvider.notifier);
+    final session = _engine.session;
+    switch (session.outcome) {
+      case RoundOutcomeClassicGameOver():
+        unawaited(
+          progress.recordClassicScore(
+            hasFrame: _config.classicHasFrame,
+            score: session.score,
+          ),
+        );
+      case RoundOutcomeLevelComplete():
+        unawaited(progress.advanceLevel());
+      case RoundOutcomeLevelFailed():
+      case RoundOutcomeOngoing():
+        break;
+    }
   }
 
   GameModeStrategy _strategyFor(GameLaunchConfig config) =>

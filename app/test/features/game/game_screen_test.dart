@@ -1,3 +1,4 @@
+import 'package:bb_block/core/providers/persistence_providers.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
 import 'package:bb_block/features/game/presentation/game_screen.dart';
 import 'package:bb_block/features/game/presentation/widgets/board_grid.dart';
@@ -7,8 +8,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_game_save_repository.dart';
+
 void main() {
   Widget wrap(GameLaunchConfig config) => ProviderScope(
+        overrides: [
+          gameSaveRepositoryProvider.overrideWithValue(
+            FakeGameSaveRepository(),
+          ),
+        ],
         child: MaterialApp(home: GameScreen(config: config)),
       );
 
