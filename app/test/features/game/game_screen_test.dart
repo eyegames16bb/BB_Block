@@ -1,3 +1,4 @@
+import 'package:bb_block/core/providers/audio_providers.dart';
 import 'package:bb_block/core/providers/haptics_providers.dart';
 import 'package:bb_block/core/providers/persistence_providers.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
@@ -10,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_audio_service.dart';
 import '../../support/fake_game_save_repository.dart';
 import '../../support/fake_haptics_service.dart';
 
@@ -20,6 +22,7 @@ void main() {
             FakeGameSaveRepository(),
           ),
           hapticsServiceProvider.overrideWithValue(FakeHapticsService()),
+          audioServiceProvider.overrideWithValue(FakeAudioService()),
         ],
         child: MaterialApp(home: GameScreen(config: config)),
       );

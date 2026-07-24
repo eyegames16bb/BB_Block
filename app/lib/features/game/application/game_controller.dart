@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:bb_block/core/providers/audio_providers.dart';
 import 'package:bb_block/core/providers/haptics_providers.dart';
 import 'package:bb_block/features/board/domain/entities/grid_position.dart';
+import 'package:bb_block/features/game/application/game_audio.dart';
 import 'package:bb_block/features/game/application/game_haptics.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
 import 'package:bb_block/features/game_engine/domain/game_engine.dart';
@@ -56,8 +58,9 @@ class GameController extends _$GameController {
       _recordOutcome();
     }
     _triggerHaptics(events);
-    // Extension point: audio and animation systems will consume `events`
-    // here once those systems land.
+    _triggerAudio(events);
+    // Extension point: the animation system will consume `events` here
+    // once it lands.
   }
 
   void _triggerHaptics(List<GameEvent> events) {
@@ -65,6 +68,14 @@ class GameController extends _$GameController {
     for (final event in events) {
       final intensity = hapticIntensityFor(event);
       if (intensity != null) unawaited(haptics.trigger(intensity));
+    }
+  }
+
+  void _triggerAudio(List<GameEvent> events) {
+    final audio = ref.read(audioServiceProvider);
+    for (final event in events) {
+      final effect = soundEffectFor(event);
+      if (effect != null) unawaited(audio.playEffect(effect));
     }
   }
 
