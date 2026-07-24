@@ -3,13 +3,17 @@ import 'dart:async';
 import 'package:bb_block/core/providers/ads_providers.dart';
 import 'package:bb_block/core/routing/app_router.dart';
 import 'package:bb_block/core/theme/app_theme.dart';
+import 'package:bb_block/core/theme/wood_background.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
+import 'package:bb_block/features/game/presentation/widgets/game_palette.dart';
 import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
 import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
 import 'package:bb_block/features/persistence/domain/player_progress.dart';
+import 'package:bb_block/features/settings/presentation/settings_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -21,46 +25,67 @@ class HomeScreen extends ConsumerWidget {
             const PlayerProgress();
 
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _TopChip(
-                    icon: Icons.movie_outlined,
-                    label: 'Ödüllü Reklam',
-                    onTap: () => _watchRewardedAd(context, ref),
-                  ),
-                  _TopChip(
-                    icon: Icons.vpn_key_outlined,
-                    label: '${progress.goldKeyCount}',
-                    onTap: () {},
-                  ),
-                ],
-              ),
-              const Spacer(),
-              Text(
-                'BB Block',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.displayMedium,
-              ),
-              const SizedBox(height: 12),
-              _BestScores(progress: progress),
-              const Spacer(),
-              _ModeButton(
-                label: 'Level Mod',
-                onTap: () => _startLevel(context, ref, progress.goldKeyCount),
-              ),
-              const SizedBox(height: 12),
-              _ModeButton(
-                label: 'Klasik Mod',
-                onTap: () => _startClassic(context),
-              ),
-              const SizedBox(height: 12),
-            ],
+      body: WoodBackground(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _TopChip(
+                      icon: PhosphorIcons.filmSlate,
+                      label: 'Ödüllü Reklam',
+                      onTap: () => _watchRewardedAd(context, ref),
+                    ),
+                    Row(
+                      children: [
+                        _TopChip(
+                          icon: PhosphorIcons.keyFill,
+                          iconColor: GamePalette.recordGold,
+                          label: '${progress.goldKeyCount}',
+                          onTap: () {},
+                        ),
+                        const SizedBox(width: 10),
+                        _RoundIconButton(
+                          icon: PhosphorIcons.gear,
+                          onTap: () => SettingsSheet.show(context),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  'BB Block',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                        color: AppColors.paper,
+                        shadows: const [
+                          Shadow(
+                            color: Colors.black54,
+                            blurRadius: 12,
+                            offset: Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                ),
+                const SizedBox(height: 14),
+                _BestScores(progress: progress),
+                const Spacer(),
+                _ModeButton(
+                  label: 'Level Mod',
+                  onTap: () => _startLevel(context, ref, progress.goldKeyCount),
+                ),
+                const SizedBox(height: 12),
+                _ModeButton(
+                  label: 'Klasik Mod',
+                  onTap: () => _startClassic(context),
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
           ),
         ),
       ),
@@ -90,7 +115,10 @@ class HomeScreen extends ConsumerWidget {
   Future<void> _startClassic(BuildContext context) async {
     final hasFrame = await showModalBottomSheet<bool>(
       context: context,
-      backgroundColor: AppColors.paper,
+      backgroundColor: AppColors.navy,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => const _FrameChoiceSheet(),
     );
     if (hasFrame == null || !context.mounted) return;
@@ -111,7 +139,10 @@ class HomeScreen extends ConsumerWidget {
   ) async {
     final useKey = await showModalBottomSheet<bool>(
       context: context,
-      backgroundColor: AppColors.paper,
+      backgroundColor: AppColors.navy,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => _GoldKeyChoiceSheet(goldKeyCount: goldKeyCount),
     );
     if (useKey == null || !context.mounted) return;
@@ -140,8 +171,9 @@ class _BestScores extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = TextStyle(
-      color: AppColors.ink.withValues(alpha: 0.7),
+      color: AppColors.paper.withValues(alpha: 0.85),
       fontSize: 14,
+      shadows: const [Shadow(color: Colors.black45, blurRadius: 4)],
     );
 
     return Column(
@@ -169,7 +201,10 @@ class _FrameChoiceSheet extends StatelessWidget {
           children: [
             Text(
               'Çerçeve',
-              style: Theme.of(context).textTheme.titleLarge,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(color: AppColors.paper),
             ),
             const SizedBox(height: 16),
             _ModeButton(
@@ -205,12 +240,15 @@ class _GoldKeyChoiceSheet extends StatelessWidget {
           children: [
             Text(
               'Level Mod',
-              style: Theme.of(context).textTheme.titleLarge,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(color: AppColors.paper),
             ),
             const SizedBox(height: 8),
             Text(
               '$goldKeyCount Altın Anahtarın var',
-              style: TextStyle(color: AppColors.ink.withValues(alpha: 0.7)),
+              style: TextStyle(color: AppColors.paper.withValues(alpha: 0.7)),
             ),
             const SizedBox(height: 16),
             _ModeButton(
@@ -230,14 +268,41 @@ class _GoldKeyChoiceSheet extends StatelessWidget {
   }
 }
 
+class _RoundIconButton extends StatelessWidget {
+  const _RoundIconButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.navy,
+      shape: const CircleBorder(),
+      elevation: 3,
+      shadowColor: Colors.black54,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Icon(icon, color: AppColors.paper, size: 18),
+        ),
+      ),
+    );
+  }
+}
+
 class _TopChip extends StatelessWidget {
   const _TopChip({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.iconColor = AppColors.paper,
   });
 
   final IconData icon;
+  final Color iconColor;
   final String label;
   final VoidCallback onTap;
 
@@ -246,6 +311,8 @@ class _TopChip extends StatelessWidget {
     return Material(
       color: AppColors.navy,
       borderRadius: BorderRadius.circular(10),
+      elevation: 3,
+      shadowColor: Colors.black54,
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: onTap,
@@ -254,7 +321,7 @@ class _TopChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: AppColors.paper, size: 18),
+              Icon(icon, color: iconColor, size: 18),
               const SizedBox(width: 8),
               Text(
                 label,
@@ -282,6 +349,8 @@ class _ModeButton extends StatelessWidget {
       child: FilledButton(
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.navy,
+          elevation: 4,
+          shadowColor: Colors.black54,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),

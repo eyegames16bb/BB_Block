@@ -9,4 +9,7 @@ class FakeHapticsService implements HapticsService {
   Future<void> trigger(HapticIntensity intensity) async {
     triggered.add(intensity);
   }
+
+  @override
+  void setMuted({required bool muted}) {}
 }

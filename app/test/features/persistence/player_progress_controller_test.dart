@@ -1,15 +1,28 @@
+import 'package:bb_block/core/providers/audio_providers.dart';
+import 'package:bb_block/core/providers/haptics_providers.dart';
 import 'package:bb_block/core/providers/persistence_providers.dart';
 import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
 import 'package:bb_block/features/persistence/domain/player_progress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_audio_service.dart';
 import '../../support/fake_game_save_repository.dart';
+import '../../support/fake_haptics_service.dart';
 
 void main() {
+  // `build()` syncs the loaded sound/haptics preference straight into the
+  // audio/haptics services (see player_progress_controller.dart), so the
+  // real `audioplayers`/`vibration`-backed implementations must be swapped
+  // for fakes here — they touch platform channels that need a widget test
+  // binding this plain `test()` file never initializes.
   ProviderContainer containerWith(FakeGameSaveRepository repo) {
     final container = ProviderContainer(
-      overrides: [gameSaveRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        gameSaveRepositoryProvider.overrideWithValue(repo),
+        audioServiceProvider.overrideWithValue(FakeAudioService()),
+        hapticsServiceProvider.overrideWithValue(FakeHapticsService()),
+      ],
     );
     addTearDown(container.dispose);
     return container;

@@ -12,6 +12,7 @@ import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
 
 import '../../support/fake_audio_service.dart';
 import '../../support/fake_game_save_repository.dart';
@@ -50,7 +51,10 @@ void main() {
     await tester.pump();
 
     expect(find.text('0 / 1000'), findsOneWidget);
-    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    // The Material LinearProgressIndicator was replaced with a custom thin
+    // line + threshold tick matching the reference mockups; it's private to
+    // game_screen.dart, so the test targets it by key instead of type.
+    expect(find.byKey(const Key('level-progress-bar')), findsOneWidget);
   });
 
   testWidgets('BoosterBar is hidden for Classic Mode', (tester) async {
@@ -99,7 +103,7 @@ void main() {
 
     expect(find.text('Duraklatıldı'), findsNothing);
 
-    await tester.tap(find.byIcon(Icons.pause));
+    await tester.tap(find.byIcon(PhosphorIcons.pause));
     await tester.pump();
 
     expect(find.text('Duraklatıldı'), findsOneWidget);

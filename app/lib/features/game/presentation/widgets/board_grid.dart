@@ -91,40 +91,68 @@ class _BoardGridState extends State<BoardGrid> {
 
   @override
   Widget build(BuildContext context) {
+    // A light-wood bezel frames the dark recessed grid — echoing the
+    // reference mockups' margin between the board and the surrounding
+    // table, instead of the grid floating as a flat dark rectangle.
     return AspectRatio(
       aspectRatio: 1,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: GamePalette.boardBackground,
-          borderRadius: BorderRadius.circular(12),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [GamePalette.bezelLight, GamePalette.bezelDark],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 12,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: DragTarget<int>(
-            onMove: _onDragMove,
-            onLeave: (_) => setState(() => _preview = null),
-            onAcceptWithDetails: (_) => _commitPreview(),
-            builder: (context, _, _) => LayoutBuilder(
-              builder: (context, constraints) {
-                final cellSize = constraints.maxWidth / widget.board.size;
-                return Container(
-                  key: _gridKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (var row = 0; row < widget.board.size; row++)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            for (var col = 0; col < widget.board.size; col++)
-                              _cell(GridPosition(row: row, column: col),
-                                  cellSize),
-                          ],
-                        ),
-                    ],
-                  ),
-                );
-              },
+          padding: const EdgeInsets.all(8),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: GamePalette.boardBackground,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: DragTarget<int>(
+                onMove: _onDragMove,
+                onLeave: (_) => setState(() => _preview = null),
+                onAcceptWithDetails: (_) => _commitPreview(),
+                builder: (context, _, _) => LayoutBuilder(
+                  builder: (context, constraints) {
+                    final cellSize =
+                        constraints.maxWidth / widget.board.size;
+                    return Container(
+                      key: _gridKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (var row = 0; row < widget.board.size; row++)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                for (var col = 0;
+                                    col < widget.board.size;
+                                    col++)
+                                  _cell(
+                                    GridPosition(row: row, column: col),
+                                    cellSize,
+                                  ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
             ),
           ),
         ),

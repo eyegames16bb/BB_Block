@@ -2,17 +2,23 @@ import 'dart:math' as math;
 
 import 'package:bb_block/core/constants/app_constants.dart';
 import 'package:bb_block/core/theme/app_theme.dart';
+import 'package:bb_block/core/theme/wood_background.dart';
 import 'package:bb_block/features/game/application/game_controller.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
 import 'package:bb_block/features/game/presentation/widgets/board_grid.dart';
 import 'package:bb_block/features/game/presentation/widgets/booster_bar.dart';
+import 'package:bb_block/features/game/presentation/widgets/game_palette.dart';
 import 'package:bb_block/features/game/presentation/widgets/piece_tray.dart';
 import 'package:bb_block/features/game_engine/domain/game_session.dart';
 import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
 import 'package:bb_block/features/game_mode/domain/round_outcome.dart';
+import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
+import 'package:bb_block/features/persistence/domain/player_progress.dart';
+import 'package:bb_block/features/settings/presentation/settings_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
 
 enum _ArmedBooster { rotate, remove }
 
@@ -70,6 +76,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final config = widget.config;
     final session = ref.watch(gameControllerProvider(config));
     final controller = ref.read(gameControllerProvider(config).notifier);
+    final progress =
+        ref.watch(playerProgressControllerProvider).value ??
+            const PlayerProgress();
 
     ref.listen<GameSession>(gameControllerProvider(config), (previous, next) {
       if (previous != null && next.score > previous.score) {
@@ -81,118 +90,128 @@ class _GameScreenState extends ConsumerState<GameScreen>
     });
 
     return Scaffold(
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _Header(
-                    config: config,
-                    session: session,
-                    onPause: () => setState(() => _isPaused = true),
-                  ),
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        // Cap the board to the smaller of the available width
-                        // and a height budget that leaves room for the tray
-                        // (and the booster bar, when shown) below it, so
-                        // nothing overflows on any screen.
-                        final reservedHeight = _boostersVisible ? 88.0 : 0.0;
-                        final boardSide = math.min(
-                          constraints.maxWidth,
-                          (constraints.maxHeight - reservedHeight) * 0.74,
-                        );
-                        final cellSize = boardSide / session.board.size;
-
-                        return Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: boardSide,
-                              height: boardSide,
-                              child: BoardGrid(
-                                board: session.board,
-                                tray: session.tray,
-                                removalArmed: _armed == _ArmedBooster.remove,
-                                onCellTap: (position) {
-                                  controller.removeCell(position);
-                                  setState(() => _armed = null);
-                                },
-                                onPlace: (trayIndex, anchor) =>
-                                    controller.placePiece(
-                                  trayIndex: trayIndex,
-                                  anchor: anchor,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            SizedBox(
-                              width: boardSide,
-                              height: cellSize * 2.2,
-                              child: PieceTray(
-                                tray: session.tray,
-                                dragCellSize: cellSize,
-                                rotateArmed: _armed == _ArmedBooster.rotate,
-                                onPieceTap: (trayIndex) {
-                                  controller.rotatePiece(trayIndex);
-                                  setState(() => _armed = null);
-                                },
-                              ),
-                            ),
-                            if (_boostersVisible) ...[
-                              const SizedBox(height: 16),
-                              BoosterBar(
-                                rotateCharges: session.rotateCharges,
-                                swapCharges: session.swapCharges,
-                                singleCellRemoveCharges:
-                                    session.singleCellRemoveCharges,
-                                rotateArmed: _armed == _ArmedBooster.rotate,
-                                removalArmed: _armed == _ArmedBooster.remove,
-                                onRotateTap: () => setState(
-                                  () => _armed = _armed == _ArmedBooster.rotate
-                                      ? null
-                                      : _ArmedBooster.rotate,
-                                ),
-                                onSwapTap: () {
-                                  controller.swapTray();
-                                  setState(() => _armed = null);
-                                },
-                                onRemovalTap: () => setState(
-                                  () => _armed = _armed == _ArmedBooster.remove
-                                      ? null
-                                      : _ArmedBooster.remove,
-                                ),
-                              ),
-                            ],
-                          ],
-                        );
-                      },
+      body: WoodBackground(
+        child: SafeArea(
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    _Header(
+                      config: config,
+                      session: session,
+                      progress: progress,
+                      onPause: () => setState(() => _isPaused = true),
                     ),
-                  ),
-                ],
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Cap the board to the smaller of the available
+                          // width and a height budget that leaves room for
+                          // the tray (and the booster bar, when shown)
+                          // below it, so nothing overflows on any screen.
+                          final reservedHeight =
+                              _boostersVisible ? 88.0 : 0.0;
+                          final boardSide = math.min(
+                            constraints.maxWidth,
+                            (constraints.maxHeight - reservedHeight) * 0.74,
+                          );
+                          final cellSize = boardSide / session.board.size;
+
+                          return Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: boardSide,
+                                height: boardSide,
+                                child: BoardGrid(
+                                  board: session.board,
+                                  tray: session.tray,
+                                  removalArmed:
+                                      _armed == _ArmedBooster.remove,
+                                  onCellTap: (position) {
+                                    controller.removeCell(position);
+                                    setState(() => _armed = null);
+                                  },
+                                  onPlace: (trayIndex, anchor) =>
+                                      controller.placePiece(
+                                    trayIndex: trayIndex,
+                                    anchor: anchor,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: boardSide,
+                                height: cellSize * 2.2,
+                                child: PieceTray(
+                                  tray: session.tray,
+                                  dragCellSize: cellSize,
+                                  rotateArmed: _armed == _ArmedBooster.rotate,
+                                  onPieceTap: (trayIndex) {
+                                    controller.rotatePiece(trayIndex);
+                                    setState(() => _armed = null);
+                                  },
+                                ),
+                              ),
+                              if (_boostersVisible) ...[
+                                const SizedBox(height: 16),
+                                BoosterBar(
+                                  rotateCharges: session.rotateCharges,
+                                  swapCharges: session.swapCharges,
+                                  singleCellRemoveCharges:
+                                      session.singleCellRemoveCharges,
+                                  rotateArmed: _armed == _ArmedBooster.rotate,
+                                  removalArmed:
+                                      _armed == _ArmedBooster.remove,
+                                  onRotateTap: () => setState(
+                                    () => _armed =
+                                        _armed == _ArmedBooster.rotate
+                                            ? null
+                                            : _ArmedBooster.rotate,
+                                  ),
+                                  onSwapTap: () {
+                                    controller.swapTray();
+                                    setState(() => _armed = null);
+                                  },
+                                  onRemovalTap: () => setState(
+                                    () => _armed =
+                                        _armed == _ArmedBooster.remove
+                                            ? null
+                                            : _ArmedBooster.remove,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            if (_scorePopupGeneration > 0)
-              IgnorePointer(
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 70),
-                    child: _ScorePopup(
-                      key: ValueKey(_scorePopupGeneration),
-                      delta: _scorePopupDelta,
+              if (_scorePopupGeneration > 0)
+                IgnorePointer(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 70),
+                      child: _ScorePopup(
+                        key: ValueKey(_scorePopupGeneration),
+                        delta: _scorePopupDelta,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            if (_isPaused && !session.isOver)
-              _PauseOverlay(onResume: () => setState(() => _isPaused = false)),
-            if (session.isOver)
-              _RoundOverlay(config: config, session: session),
-          ],
+              if (_isPaused && !session.isOver)
+                _PauseOverlay(
+                  onResume: () => setState(() => _isPaused = false),
+                ),
+              if (session.isOver)
+                _RoundOverlay(config: config, session: session),
+            ],
+          ),
         ),
       ),
     );
@@ -203,37 +222,127 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.config,
     required this.session,
+    required this.progress,
     required this.onPause,
   });
 
   final GameLaunchConfig config;
   final GameSession session;
+  final PlayerProgress progress;
   final VoidCallback onPause;
 
   @override
   Widget build(BuildContext context) {
     final isLevel = config.mode == GameModeType.level;
+    final highScore = config.classicHasFrame
+        ? progress.classicHighScoreFramed
+        : progress.classicHighScoreFrameless;
 
     return Row(
       children: [
-        IconButton(
-          onPressed: () => context.pop(),
-          icon: const Icon(Icons.arrow_back),
+        _RoundIconButton(
+          icon: PhosphorIcons.arrowLeft,
+          onTap: () => context.pop(),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 10),
         Expanded(
           child: isLevel
               ? _LevelProgress(score: session.score)
-              : Text(
-                  '${session.score}',
-                  style: Theme.of(context).textTheme.headlineMedium,
+              : Row(
+                  children: [
+                    _RecordBadge(highScore: highScore),
+                    const SizedBox(width: 12),
+                    Text(
+                      '${session.score}',
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineMedium
+                          ?.copyWith(
+                            color: AppColors.paper,
+                            shadows: const [
+                              Shadow(color: Colors.black54, blurRadius: 6),
+                            ],
+                          ),
+                    ),
+                  ],
                 ),
         ),
-        IconButton(
-          onPressed: onPause,
-          icon: const Icon(Icons.pause),
+        const SizedBox(width: 8),
+        _RoundIconButton(icon: PhosphorIcons.pause, onTap: onPause),
+        const SizedBox(width: 8),
+        _RoundIconButton(
+          icon: PhosphorIcons.gear,
+          onTap: () => SettingsSheet.show(context),
         ),
       ],
+    );
+  }
+}
+
+/// The crown-badged high-score chip from the reference mockups — only
+/// meaningful in Classic Mode, where there's a persistent best to compare
+/// against (Level Mode already shows progress toward the 1000-point goal).
+class _RecordBadge extends StatelessWidget {
+  const _RecordBadge({required this.highScore});
+
+  final int highScore;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.navy,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: const [
+          BoxShadow(color: Colors.black45, blurRadius: 6, offset: Offset(0, 2)),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              PhosphorIcons.crownFill,
+              color: GamePalette.recordGold,
+              size: 18,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '$highScore',
+              style: const TextStyle(
+                color: GamePalette.recordGold,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RoundIconButton extends StatelessWidget {
+  const _RoundIconButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.navy,
+      shape: const CircleBorder(),
+      elevation: 3,
+      shadowColor: Colors.black54,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Icon(icon, color: AppColors.paper, size: 20),
+        ),
+      ),
     );
   }
 }
@@ -310,15 +419,18 @@ class _ScorePopup extends StatelessWidget {
       child: Text(
         '+$delta',
         style: const TextStyle(
-          color: AppColors.gold,
+          color: GamePalette.recordGold,
           fontSize: 28,
           fontWeight: FontWeight.bold,
+          shadows: [Shadow(color: Colors.black54, blurRadius: 6)],
         ),
       ),
     );
   }
 }
 
+/// A thin line + threshold tick, matching the reference mockups, instead of
+/// a stock Material [LinearProgressIndicator].
 class _LevelProgress extends StatelessWidget {
   const _LevelProgress({required this.score});
 
@@ -327,21 +439,61 @@ class _LevelProgress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const target = LevelModeConstants.targetScore;
+    const thresholdFraction =
+        LevelModeConstants.frameRemovalThreshold / target;
+    final fraction = (score / target).clamp(0, 1).toDouble();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           '$score / $target',
-          style: Theme.of(context).textTheme.titleLarge,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: AppColors.paper,
+                shadows: const [
+                  Shadow(color: Colors.black54, blurRadius: 6),
+                ],
+              ),
         ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: LinearProgressIndicator(
-            value: (score / target).clamp(0, 1).toDouble(),
-            minHeight: 8,
-            backgroundColor: AppColors.navy.withValues(alpha: 0.15),
-            color: AppColors.gold,
+        const SizedBox(height: 8),
+        SizedBox(
+          key: const Key('level-progress-bar'),
+          height: 10,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    height: 3,
+                    margin: const EdgeInsets.symmetric(vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  FractionallySizedBox(
+                    widthFactor: fraction,
+                    child: Container(
+                      height: 3,
+                      margin: const EdgeInsets.symmetric(vertical: 3.5),
+                      decoration: BoxDecoration(
+                        color: GamePalette.recordGold,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: constraints.maxWidth * thresholdFraction - 1,
+                    child: Container(
+                      width: 2,
+                      height: 10,
+                      color: AppColors.paper.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ],

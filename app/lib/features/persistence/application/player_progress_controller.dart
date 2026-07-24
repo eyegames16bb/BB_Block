@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:bb_block/core/providers/audio_providers.dart';
+import 'package:bb_block/core/providers/haptics_providers.dart';
 import 'package:bb_block/core/providers/persistence_providers.dart';
 import 'package:bb_block/features/persistence/domain/player_progress.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -13,8 +15,29 @@ part 'player_progress_controller.g.dart';
 @riverpod
 class PlayerProgressController extends _$PlayerProgressController {
   @override
-  Future<PlayerProgress> build() =>
-      ref.watch(gameSaveRepositoryProvider).load();
+  Future<PlayerProgress> build() async {
+    final progress = await ref.watch(gameSaveRepositoryProvider).load();
+    // Apply the persisted sound/haptics preference to the services as soon
+    // as progress loads, so a saved "muted" choice actually takes effect on
+    // startup rather than only after the next toggle.
+    ref.read(audioServiceProvider).setMuted(muted: !progress.soundEnabled);
+    ref
+        .read(hapticsServiceProvider)
+        .setMuted(muted: !progress.hapticsEnabled);
+    return progress;
+  }
+
+  Future<void> setSoundEnabled({required bool enabled}) async {
+    final current = state.value ?? const PlayerProgress();
+    ref.read(audioServiceProvider).setMuted(muted: !enabled);
+    await _persist(current.copyWith(soundEnabled: enabled));
+  }
+
+  Future<void> setHapticsEnabled({required bool enabled}) async {
+    final current = state.value ?? const PlayerProgress();
+    ref.read(hapticsServiceProvider).setMuted(muted: !enabled);
+    await _persist(current.copyWith(hapticsEnabled: enabled));
+  }
 
   Future<void> recordClassicScore({
     required bool hasFrame,

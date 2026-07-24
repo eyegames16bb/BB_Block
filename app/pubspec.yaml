@@ -42,7 +42,7 @@ dependencies:
   json_annotation: ^4.12.0
   logger: ^2.7.0
   newton_particles: ^0.3.0
-  phosphor_flutter: ^2.1.0
+  phosphoricons_flutter: ^1.0.0
   purchases_flutter: ^10.4.3
   riverpod_annotation: ^4.0.3
   shared_preferences: ^2.5.3

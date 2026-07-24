@@ -18,8 +18,8 @@ Flutter (stable) + Dart, Clean Architecture, Feature-First klasör yapısı.
 - **IAP**: `purchases_flutter` (RevenueCat)
 - **Ses**: `audioplayers` (çakışan çoklu SFX + döngülü ambiyans)
 - **Haptik**: `vibration`
-- **Partikül**: `newton_particles`
-- **İkon**: `phosphor_flutter`
+- **Partikül**: `newton_particles` (henüz kullanılmıyor — bkz. "Bilinen açık noktalar")
+- **İkon**: `phosphoricons_flutter` (**`phosphor_flutter` değil** — o paket `IconData`'yı extend ediyor, ve şu anki Flutter SDK (3.44.7) `IconData`'yı `final class` yaptığı için artık derlenmiyor; bkz. [breaking change](https://docs.flutter.dev/release/breaking-changes/icondata-class-marked-final). `phosphoricons_flutter` aynı ikon setini typedef tabanlı sabitlerle sağlıyor: `PhosphorIcons.gear` gibi çağrısız `static const IconData`, `PhosphorIcons.crownFill`/`keyFill` gibi stil-sonekli varyantlar)
 - **Font**: Google Fonts — Fredoka (başlık/display) + Nunito (gövde), `google_fonts` paketiyle çalışma zamanında yükleniyor
 
 ## Mimari
@@ -28,7 +28,7 @@ Flutter (stable) + Dart, Clean Architecture, Feature-First klasör yapısı.
 lib/
   core/
     constants/     — büyü sayı yok: board boyutu, puan sabitleri, level eşiği burada
-    theme/         — renk/tipografi token'ları
+    theme/         — renk/tipografi token'ları + `WoodBackground` (procedural wood-grain `CustomPainter`)
     routing/       — go_router
     providers/     — Audio/Haptics/Ads/Persistence servisleri için Riverpod seam'leri
     services/      — Audio/Haptics/Ads: arayüz + implementasyon ayrı dosyalarda (SRP)
@@ -41,9 +41,10 @@ lib/
     game_engine/domain       — Orkestrasyon: GameEngine + GameSession + GameEvent (saf Dart)
     booster/domain           — Command Pattern: Rotate/Swap/SingleCellRemove
     persistence/domain+data   — Repository Pattern: GameSaveRepository + local (SharedPreferences) impl
-    persistence/application    — PlayerProgressController (yüksek skor/level/altın anahtar, kalıcı)
+    persistence/application    — PlayerProgressController (yüksek skor/level/altın anahtar, ses/haptik tercihi, kalıcı)
+    settings/presentation      — SettingsSheet (Ses/Titreşim toggle'ları; her iki ekranın gear butonundan açılıyor)
     game/application          — GameController (Riverpod Notifier) + GameLaunchConfig
-    game/presentation         — GameScreen + BoardGrid/PieceTray/PieceView (oynanabilir döngü)
+    game/presentation         — GameScreen + BoardGrid/PieceTray/BoosterBar/PieceView (oynanabilir döngü, `GamePalette` renk token'ları)
     home/presentation         — ana menü (mod seçimi + Çerçeve VAR/YOK diyaloğu)
 ```
 
@@ -62,6 +63,8 @@ Engine (board/scoring/piece_generation/booster/game_engine) UI'dan tamamen bağ�
 
 ## Bilinen açık noktalar (henüz kapatılmadı)
 
+- **Görsel cila geçişi (bu oturumda yapıldı)**: Kullanıcı geri bildirimi üzerine ("arka plan beyaz krem veya gri olmayacak... çok daha profesyonel gerçekçi tasarım istiyorum") hem ana menü hem oyun ekranı `WoodBackground` (procedural wood-grain) ile sarmalandı; board artık `GamePalette.bezelLight/bezelDark` gradyanlı açık-ahşap bir bezel içinde. Eklenenler: Klasik Mod'da taç+skor rekor rozeti (`_RecordBadge`, `GamePalette.recordGold`), her iki ekranda dişli/gear butonu → `SettingsSheet` (Ses/Titreşim toggle, `PlayerProgress.soundEnabled/hapticsEnabled` alanlarına kalıcı, `AudioService`/`HapticsService.setMuted` ile senkron), Level Mod ilerleme çubuğu artık Material `LinearProgressIndicator` değil ince çizgi + 900 eşik tick'i (`_LevelProgress`, test'te `Key('level-progress-bar')` ile bulunuyor), `BoosterBar` artık navy değil GDD mockup'ındaki gibi tan-ahşap panel + köşede şarj rozeti. Ana menüdeki Çerçeve/Altın Anahtar seçim sheet'leri artık `AppColors.paper` değil `AppColors.navy` arka plan kullanıyor (koyu tema ile tutarlı). Emülatörde ekran görüntüsüyle doğrulandı.
+- **Toz/kırılma efekti hâlâ scale/opacity tabanlı, gerçek parçacık değil**: `newton_particles` pubspec'te duruyor ama hiçbir yerde import edilmiyor — karar #4'teki Frame Destroy dahil tüm "kırılma" görselleri `BoardGrid`'in kendi `TweenAnimationBuilder` tabanlı overlay'leri. Gerçek toz patlaması eklenmek istenirse `GlobalKey<NewtonState>` + `ExplosionPreset(...).toConfiguration()` API'si zaten araştırıldı (bkz. git geçmişi / önceki analiz).
 - Asset lisansları: **Mixkit** SFX lisansının oyun içi kullanımı yasaklıyor olabileceği, **Zapsplat**'ın ücretsiz planda atıf zorunluluğu getirdiği tespit edildi — kullanılmadan önce manuel doğrulanmalı.
 - Ses/görsel/font varlıkları henüz yok. `AudioPlayersAudioService` çalma çağrılarını `try/on Object catch` ile sarıyor ve eksik asset'te sessizce loglayıp devam ediyor (`appLogger.w`) — kod tam bağlı ama gerçek dosyalar eklenip `pubspec.yaml`'a asset kaydı yapılana kadar hiçbir ses duyulmayacak.
 - Org kimliği `com.bbblock` yer tutucudur — mağaza gönderiminden önce gerçek ters-domain ile değiştirilmeli (`app/android`, `app/ios` proje ayarları).

@@ -13,6 +13,8 @@ abstract class PlayerProgress with _$PlayerProgress {
     @Default(0) int classicHighScoreFrameless,
     @Default(1) int currentLevel,
     @Default(0) int goldKeyCount,
+    @Default(true) bool soundEnabled,
+    @Default(true) bool hapticsEnabled,
   }) = _PlayerProgress;
 
   factory PlayerProgress.fromJson(Map<String, dynamic> json) =>
