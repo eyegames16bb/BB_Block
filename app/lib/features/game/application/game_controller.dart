@@ -14,6 +14,7 @@ import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
 import 'package:bb_block/features/game_mode/domain/level_mode_strategy.dart';
 import 'package:bb_block/features/game_mode/domain/round_outcome.dart';
 import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
+import 'package:bb_block/features/persistence/domain/player_progress.dart';
 import 'package:bb_block/features/piece_generation/domain/weighted_piece_generator.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -32,11 +33,23 @@ class GameController extends _$GameController {
   @override
   GameSession build(GameLaunchConfig config) {
     _config = config;
+    // Level Mode boosters are a persistent, account-level resource (see
+    // `PlayerProgress`) — every fresh engine (including a retry) starts from
+    // whatever the player currently owns, not a fixed per-attempt default.
+    // Classic Mode never has boosters, so it never touches this provider —
+    // callers (HomeScreen) are responsible for making sure PlayerProgress
+    // has actually finished loading before a Level Mode config reaches here.
+    final isLevel = config.mode == GameModeType.level;
+    final progress = isLevel
+        ? (ref.read(playerProgressControllerProvider).value ??
+            const PlayerProgress())
+        : null;
     _engine = GameEngine(
       mode: _strategyFor(config),
       generator: WeightedPieceGenerator(),
-      boostersEnabled:
-          config.mode == GameModeType.level && config.levelBoostersUnlocked,
+      initialRotateCharges: progress?.rotateCharges ?? 0,
+      initialSwapCharges: progress?.swapCharges ?? 0,
+      initialSingleCellRemoveCharges: progress?.singleCellRemoveCharges ?? 0,
     );
     return _engine.session;
   }
@@ -53,7 +66,32 @@ class GameController extends _$GameController {
       _apply(_engine.removeCell(position));
 
   void _apply(List<GameEvent> events) {
+    final previousScore = state.score;
     state = _engine.session;
+
+    // Classic Mode has no natural "end of round" that always fires (the
+    // player can quit mid-round), so the high score is persisted the moment
+    // it's actually beaten rather than only at game-over — see
+    // `_RecordBadge` in game_screen.dart for the matching live display.
+    if (_config.mode == GameModeType.classic && state.score > previousScore) {
+      unawaited(
+        ref.read(playerProgressControllerProvider.notifier).recordClassicScore(
+              hasFrame: _config.classicHasFrame,
+              score: state.score,
+            ),
+      );
+    }
+
+    if (events.any(_isBoosterUseEvent)) {
+      unawaited(
+        ref.read(playerProgressControllerProvider.notifier).syncBoosterCharges(
+              rotate: state.rotateCharges,
+              swap: state.swapCharges,
+              singleCellRemove: state.singleCellRemoveCharges,
+            ),
+      );
+    }
+
     if (events.any((event) => event is GameEventRoundEnded)) {
       _recordOutcome();
     }
@@ -62,6 +100,11 @@ class GameController extends _$GameController {
     // Extension point: the animation system will consume `events` here
     // once it lands.
   }
+
+  bool _isBoosterUseEvent(GameEvent event) =>
+      event is GameEventPieceRotated ||
+      event is GameEventTraySwapped ||
+      event is GameEventCellRemoved;
 
   void _triggerHaptics(List<GameEvent> events) {
     final haptics = ref.read(hapticsServiceProvider);
@@ -83,13 +126,10 @@ class GameController extends _$GameController {
     final progress = ref.read(playerProgressControllerProvider.notifier);
     final session = _engine.session;
     switch (session.outcome) {
+      // Classic Mode's score is already persisted continuously in _apply as
+      // it's earned, so there's nothing left to do here for it.
       case RoundOutcomeClassicGameOver():
-        unawaited(
-          progress.recordClassicScore(
-            hasFrame: _config.classicHasFrame,
-            score: session.score,
-          ),
-        );
+        break;
       case RoundOutcomeLevelComplete():
         unawaited(progress.advanceLevel());
       case RoundOutcomeLevelFailed():

@@ -1,4 +1,3 @@
-import 'package:bb_block/core/constants/app_constants.dart';
 import 'package:bb_block/features/board/domain/entities/board.dart';
 import 'package:bb_block/features/board/domain/entities/cell_state.dart';
 import 'package:bb_block/features/board/domain/entities/grid_position.dart';
@@ -20,7 +19,9 @@ void main() {
     List<List<PieceShape>>? script,
     int pointsPerLine = 10,
     int? frameThreshold,
-    bool boostersEnabled = true,
+    int initialRotateCharges = 1,
+    int initialSwapCharges = 1,
+    int initialSingleCellRemoveCharges = 1,
   }) {
     return GameEngine(
       mode: FakeModeStrategy(
@@ -31,7 +32,9 @@ void main() {
       generator: ScriptedPieceGenerator(
         script ?? [List.filled(3, single)],
       ),
-      boostersEnabled: boostersEnabled,
+      initialRotateCharges: initialRotateCharges,
+      initialSwapCharges: initialSwapCharges,
+      initialSingleCellRemoveCharges: initialSingleCellRemoveCharges,
     );
   }
 
@@ -305,20 +308,27 @@ void main() {
   });
 
   group('booster charges', () {
-    test('Classic Mode (boostersEnabled: false) starts with zero charges',
+    test('Classic Mode (no initial charges given) starts with zero charges',
         () {
-      final engine = engineOn(Board.empty(), boostersEnabled: false);
+      final engine = engineOn(
+        Board.empty(),
+        initialRotateCharges: 0,
+        initialSwapCharges: 0,
+        initialSingleCellRemoveCharges: 0,
+      );
 
       expect(engine.session.rotateCharges, 0);
       expect(engine.session.swapCharges, 0);
       expect(engine.session.singleCellRemoveCharges, 0);
     });
 
-    test('boosters are refused outright when disabled', () {
+    test('boosters are refused outright with zero initial charges', () {
       final lShape = shapeById(PieceShapeId.lTriomino0);
       final engine = engineOn(
         boardFromRows(['#X#', '#X#', '###']),
-        boostersEnabled: false,
+        initialRotateCharges: 0,
+        initialSwapCharges: 0,
+        initialSingleCellRemoveCharges: 0,
         script: [
           [lShape, single, single],
         ],
@@ -332,19 +342,18 @@ void main() {
       );
     });
 
-    test('an unlocked Level attempt starts with the default charge counts',
+    test('starts with whatever initial charge counts the caller passes in',
         () {
-      final engine = engineOn(Board.framed());
+      final engine = engineOn(
+        Board.framed(),
+        initialRotateCharges: 3,
+        initialSwapCharges: 2,
+        initialSingleCellRemoveCharges: 5,
+      );
 
-      expect(
-        engine.session.rotateCharges,
-        BoosterConstants.defaultRotateCharges,
-      );
-      expect(engine.session.swapCharges, BoosterConstants.defaultSwapCharges);
-      expect(
-        engine.session.singleCellRemoveCharges,
-        BoosterConstants.defaultSingleCellRemoveCharges,
-      );
+      expect(engine.session.rotateCharges, 3);
+      expect(engine.session.swapCharges, 2);
+      expect(engine.session.singleCellRemoveCharges, 5);
     });
 
     test('each booster use consumes exactly one charge of its own kind', () {
@@ -358,11 +367,8 @@ void main() {
 
       engine.rotatePiece(0);
 
-      expect(
-        engine.session.rotateCharges,
-        BoosterConstants.defaultRotateCharges - 1,
-      );
-      expect(engine.session.swapCharges, BoosterConstants.defaultSwapCharges);
+      expect(engine.session.rotateCharges, 0);
+      expect(engine.session.swapCharges, 1);
     });
 
     test('a booster with zero charges left refuses further use', () {

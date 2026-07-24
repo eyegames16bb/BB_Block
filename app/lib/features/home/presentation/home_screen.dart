@@ -4,6 +4,7 @@ import 'package:bb_block/core/providers/ads_providers.dart';
 import 'package:bb_block/core/routing/app_router.dart';
 import 'package:bb_block/core/theme/app_theme.dart';
 import 'package:bb_block/core/theme/wood_background.dart';
+import 'package:bb_block/features/booster/domain/booster_kind.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
 import 'package:bb_block/features/game/presentation/widgets/game_palette.dart';
 import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
@@ -137,28 +138,37 @@ class HomeScreen extends ConsumerWidget {
     WidgetRef ref,
     int goldKeyCount,
   ) async {
-    final useKey = await showModalBottomSheet<bool>(
+    // GameController reads booster charges from PlayerProgress the instant
+    // it builds, synchronously — guarantee it's actually loaded first, so a
+    // player with real saved charges never gets seeded with fallback
+    // defaults just because SharedPreferences hadn't resolved yet.
+    await ref.read(playerProgressControllerProvider.future);
+    if (!context.mounted) return;
+
+    // `null` result means "skip" (dismissed, or explicitly chose to start
+    // without spending a key) — booster charges are a persistent resource
+    // now (see PlayerProgress), so skipping just means playing with
+    // whatever's already stashed rather than unlocking anything.
+    final chosen = await showModalBottomSheet<BoosterKind>(
       context: context,
       backgroundColor: AppColors.navy,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => _GoldKeyChoiceSheet(goldKeyCount: goldKeyCount),
+      builder: (context) => _BoosterChoiceSheet(goldKeyCount: goldKeyCount),
     );
-    if (useKey == null || !context.mounted) return;
-
-    final boostersUnlocked = useKey &&
-        await ref
-            .read(playerProgressControllerProvider.notifier)
-            .spendGoldKey();
     if (!context.mounted) return;
+
+    if (chosen != null) {
+      await ref
+          .read(playerProgressControllerProvider.notifier)
+          .refillBooster(chosen);
+      if (!context.mounted) return;
+    }
 
     await context.push(
       AppRoutes.game,
-      extra: GameLaunchConfig(
-        mode: GameModeType.level,
-        levelBoostersUnlocked: boostersUnlocked,
-      ),
+      extra: const GameLaunchConfig(mode: GameModeType.level),
     );
   }
 }
@@ -223,8 +233,12 @@ class _FrameChoiceSheet extends StatelessWidget {
   }
 }
 
-class _GoldKeyChoiceSheet extends StatelessWidget {
-  const _GoldKeyChoiceSheet({required this.goldKeyCount});
+/// Booster charges persist across levels and retries (see `PlayerProgress`)
+/// — this sheet is just an optional, skippable chance to spend a Gold Key
+/// on one specific booster before starting, not a gate on using boosters at
+/// all like the old unlock-the-whole-attempt flow was.
+class _BoosterChoiceSheet extends StatelessWidget {
+  const _BoosterChoiceSheet({required this.goldKeyCount});
 
   final int goldKeyCount;
 
@@ -247,19 +261,42 @@ class _GoldKeyChoiceSheet extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '$goldKeyCount Altın Anahtarın var',
+              canUseKey
+                  ? '$goldKeyCount Altın Anahtarın var — bir tamamlayıcıyı '
+                      '+1 doldurmak ister misin?'
+                  : 'Altın Anahtarın yok',
+              textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.paper.withValues(alpha: 0.7)),
             ),
             const SizedBox(height: 16),
             _ModeButton(
-              label: 'Anahtarsız Başla',
-              onTap: () => Navigator.of(context).pop(false),
+              icon: PhosphorIcons.arrowsClockwise,
+              label: 'Yön Değiştirme +1',
+              onTap: canUseKey
+                  ? () => Navigator.of(context).pop(BoosterKind.rotate)
+                  : null,
             ),
             const SizedBox(height: 12),
             _ModeButton(
-              label: 'Altın Anahtar İle Başla',
-              onTap:
-                  canUseKey ? () => Navigator.of(context).pop(true) : null,
+              icon: PhosphorIcons.swap,
+              label: 'Parça Değiştirme +1',
+              onTap: canUseKey
+                  ? () => Navigator.of(context).pop(BoosterKind.swap)
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            _ModeButton(
+              icon: PhosphorIcons.eraser,
+              label: 'Tek Nokta Silici +1',
+              onTap: canUseKey
+                  ? () => Navigator.of(context)
+                      .pop(BoosterKind.singleCellRemove)
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            _ModeButton(
+              label: 'Anahtarsız Başla',
+              onTap: () => Navigator.of(context).pop(),
             ),
           ],
         ),
@@ -336,10 +373,11 @@ class _TopChip extends StatelessWidget {
 }
 
 class _ModeButton extends StatelessWidget {
-  const _ModeButton({required this.label, required this.onTap});
+  const _ModeButton({required this.label, required this.onTap, this.icon});
 
   final String label;
   final VoidCallback? onTap;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -356,7 +394,16 @@ class _ModeButton extends StatelessWidget {
           ),
         ),
         onPressed: onTap,
-        child: Text(label, style: const TextStyle(fontSize: 18)),
+        child: icon == null
+            ? Text(label, style: const TextStyle(fontSize: 18))
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 20),
+                  const SizedBox(width: 10),
+                  Text(label, style: const TextStyle(fontSize: 18)),
+                ],
+              ),
       ),
     );
   }

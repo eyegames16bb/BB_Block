@@ -41,9 +41,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
   int _scorePopupGeneration = 0;
   int _scorePopupDelta = 0;
 
-  bool get _boostersVisible =>
-      widget.config.mode == GameModeType.level &&
-      widget.config.levelBoostersUnlocked;
+  bool get _boostersVisible => widget.config.mode == GameModeType.level;
 
   @override
   void initState() {
@@ -74,11 +72,27 @@ class _GameScreenState extends ConsumerState<GameScreen>
   @override
   Widget build(BuildContext context) {
     final config = widget.config;
+    final progressAsync = ref.watch(playerProgressControllerProvider);
+
+    // GameController seeds Level Mode's persistent booster charges from
+    // PlayerProgress synchronously the instant it first builds — wait for
+    // that load to actually finish before creating it, or a cold
+    // navigation could seed a fresh engine with fallback defaults instead
+    // of the player's real saved charges (which never gets corrected
+    // afterwards, since the engine is only built once per round).
+    if (config.mode == GameModeType.level && !progressAsync.hasValue) {
+      return const Scaffold(
+        body: WoodBackground(
+          child: Center(
+            child: CircularProgressIndicator(color: AppColors.paper),
+          ),
+        ),
+      );
+    }
+
     final session = ref.watch(gameControllerProvider(config));
     final controller = ref.read(gameControllerProvider(config).notifier);
-    final progress =
-        ref.watch(playerProgressControllerProvider).value ??
-            const PlayerProgress();
+    final progress = progressAsync.value ?? const PlayerProgress();
 
     ref.listen<GameSession>(gameControllerProvider(config), (previous, next) {
       if (previous != null && next.score > previous.score) {
@@ -162,6 +176,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                   swapCharges: session.swapCharges,
                                   singleCellRemoveCharges:
                                       session.singleCellRemoveCharges,
+                                  goldKeyCount: progress.goldKeyCount,
                                   rotateArmed: _armed == _ArmedBooster.rotate,
                                   removalArmed:
                                       _armed == _ArmedBooster.remove,
@@ -181,6 +196,12 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                             ? null
                                             : _ArmedBooster.remove,
                                   ),
+                                  onRefill: (kind) => ref
+                                      .read(
+                                        playerProgressControllerProvider
+                                            .notifier,
+                                      )
+                                      .refillBooster(kind),
                                 ),
                               ],
                             ],
@@ -234,9 +255,13 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLevel = config.mode == GameModeType.level;
-    final highScore = config.classicHasFrame
+    // The badge must read as "your best" the instant this round beats it,
+    // not lag behind until the async persistence write lands — see
+    // GameController._apply, which is what actually saves the new best.
+    final persistedBest = config.classicHasFrame
         ? progress.classicHighScoreFramed
         : progress.classicHighScoreFrameless;
+    final highScore = math.max(persistedBest, session.score);
 
     return Row(
       children: [

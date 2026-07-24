@@ -9,6 +9,8 @@ import 'package:bb_block/features/game/presentation/widgets/board_grid.dart';
 import 'package:bb_block/features/game/presentation/widgets/booster_bar.dart';
 import 'package:bb_block/features/game/presentation/widgets/piece_tray.dart';
 import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
+import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
+import 'package:bb_block/features/persistence/domain/player_progress.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,10 +21,11 @@ import '../../support/fake_game_save_repository.dart';
 import '../../support/fake_haptics_service.dart';
 
 void main() {
-  Widget wrap(GameLaunchConfig config) => ProviderScope(
+  Widget wrap(GameLaunchConfig config, {PlayerProgress? progress}) =>
+      ProviderScope(
         overrides: [
           gameSaveRepositoryProvider.overrideWithValue(
-            FakeGameSaveRepository(),
+            FakeGameSaveRepository(progress ?? const PlayerProgress()),
           ),
           hapticsServiceProvider.overrideWithValue(FakeHapticsService()),
           audioServiceProvider.overrideWithValue(FakeAudioService()),
@@ -48,6 +51,10 @@ void main() {
     await tester.pumpWidget(
       wrap(const GameLaunchConfig(mode: GameModeType.level)),
     );
+    // Level Mode gates on PlayerProgress finishing its load before it
+    // mounts the actual game (see GameScreen.build) — one extra pump past
+    // that loading frame.
+    await tester.pump();
     await tester.pump();
 
     expect(find.text('0 / 1000'), findsOneWidget);
@@ -66,32 +73,44 @@ void main() {
     expect(find.byType(BoosterBar), findsNothing);
   });
 
-  testWidgets('BoosterBar is hidden for a locked Level Mode attempt',
+  testWidgets(
+      'BoosterBar is shown for Level Mode using the persisted charges',
       (tester) async {
     await tester.pumpWidget(
-      wrap(const GameLaunchConfig(mode: GameModeType.level)),
-    );
-    await tester.pump();
-
-    expect(find.byType(BoosterBar), findsNothing);
-  });
-
-  testWidgets(
-      'BoosterBar is shown with default charges for an unlocked Level '
-      'Mode attempt', (tester) async {
-    await tester.pumpWidget(
       wrap(
-        const GameLaunchConfig(
-          mode: GameModeType.level,
-          levelBoostersUnlocked: true,
+        const GameLaunchConfig(mode: GameModeType.level),
+        progress: const PlayerProgress(
+          rotateCharges: 3,
+          swapCharges: 0,
+          singleCellRemoveCharges: 5,
         ),
       ),
     );
     await tester.pump();
+    await tester.pump();
 
     expect(find.byType(BoosterBar), findsOneWidget);
-    // Default charges are 1/1/1.
-    expect(find.text('1'), findsNWidgets(3));
+    expect(find.text('3'), findsOneWidget);
+    expect(find.text('0'), findsOneWidget);
+    expect(find.text('5'), findsOneWidget);
+  });
+
+  testWidgets(
+      'a depleted booster with a Gold Key available shows a refill badge '
+      'instead of the zero charge count', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        const GameLaunchConfig(mode: GameModeType.level),
+        progress: const PlayerProgress(rotateCharges: 0, goldKeyCount: 1),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    // Rotate is depleted but refillable (a key is owned): no literal "0"
+    // for it — the badge swaps to a key icon instead, per BoosterBar's
+    // refillable-state rendering.
+    expect(find.text('0'), findsNothing);
   });
 
   testWidgets('the pause button shows an overlay, and Devam Et dismisses it',
@@ -157,5 +176,29 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('+'), findsOneWidget);
+  });
+
+  testWidgets(
+      'a Classic Mode round persists the high score the instant it is '
+      'beaten, without waiting for game over', (tester) async {
+    const config = GameLaunchConfig(mode: GameModeType.classic);
+    await tester.pumpWidget(wrap(config));
+    await tester.pump();
+
+    final context = tester.element(find.byType(GameScreen));
+    final container = ProviderScope.containerOf(context);
+    container.read(gameControllerProvider(config).notifier).placePiece(
+          trayIndex: 0,
+          anchor: const GridPosition(row: 0, column: 0),
+        );
+    await tester.pump();
+
+    final score = container.read(gameControllerProvider(config)).score;
+    expect(score, greaterThan(0));
+    expect(
+      container.read(playerProgressControllerProvider).value!
+          .classicHighScoreFrameless,
+      score,
+    );
   });
 }

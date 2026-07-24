@@ -1,4 +1,3 @@
-import 'package:bb_block/core/constants/app_constants.dart';
 import 'package:bb_block/features/board/domain/entities/board.dart';
 import 'package:bb_block/features/board/domain/entities/grid_position.dart';
 import 'package:bb_block/features/board/domain/services/line_clear_resolver.dart';
@@ -22,16 +21,19 @@ import 'package:bb_block/features/piece_generation/domain/piece_generator.dart';
 /// It imports nothing from Flutter — it is pure Dart and fully unit-testable.
 ///
 /// Classic Mode never has boosters (the GDD is explicit: "Bu oyun modunda
-/// tamamlayıcı olmayacaktır"). A Level Mode attempt only gets them if the
-/// caller passes `boostersEnabled: true` — the app layer decides that from
-/// whether the player spent a Gold Key to unlock this level. Charges then
-/// reset to [BoosterConstants] defaults on *every* fresh `GameEngine`
-/// instance, including retries of the same level — see `GameLaunchConfig`.
+/// tamamlayıcı olmayacaktır") — its caller simply never passes initial
+/// charges. Level Mode boosters are a *persistent* resource (see
+/// `PlayerProgress`): the engine itself doesn't know that: it just starts a
+/// session with whatever charge counts the caller hands it and decrements
+/// them as they're used. `GameController` is the layer that reads/writes
+/// those counts from `PlayerProgress` before/after each engine call.
 class GameEngine {
   GameEngine({
     required GameModeStrategy mode,
     required PieceGenerator generator,
-    bool boostersEnabled = true,
+    int initialRotateCharges = 0,
+    int initialSwapCharges = 0,
+    int initialSingleCellRemoveCharges = 0,
     PlacementValidator? placementValidator,
     LineClearResolver? lineClearResolver,
     RotatePieceCommand rotateCommand = const RotatePieceCommand(),
@@ -40,7 +42,9 @@ class GameEngine {
     SwapPiecesCommand? swapCommand,
   })  : _mode = mode,
         _generator = generator,
-        _boostersEnabled = boostersEnabled,
+        _initialRotateCharges = initialRotateCharges,
+        _initialSwapCharges = initialSwapCharges,
+        _initialSingleCellRemoveCharges = initialSingleCellRemoveCharges,
         _placementValidator =
             placementValidator ?? const DefaultPlacementValidator(),
         _lineClearResolver =
@@ -53,7 +57,9 @@ class GameEngine {
 
   final GameModeStrategy _mode;
   final PieceGenerator _generator;
-  final bool _boostersEnabled;
+  final int _initialRotateCharges;
+  final int _initialSwapCharges;
+  final int _initialSingleCellRemoveCharges;
   final PlacementValidator _placementValidator;
   final LineClearResolver _lineClearResolver;
   final RotatePieceCommand _rotateCommand;
@@ -72,12 +78,9 @@ class GameEngine {
       score: 0,
       mode: _mode.type,
       outcome: const RoundOutcome.ongoing(),
-      rotateCharges:
-          _boostersEnabled ? BoosterConstants.defaultRotateCharges : 0,
-      swapCharges: _boostersEnabled ? BoosterConstants.defaultSwapCharges : 0,
-      singleCellRemoveCharges: _boostersEnabled
-          ? BoosterConstants.defaultSingleCellRemoveCharges
-          : 0,
+      rotateCharges: _initialRotateCharges,
+      swapCharges: _initialSwapCharges,
+      singleCellRemoveCharges: _initialSingleCellRemoveCharges,
     );
   }
 

@@ -20,10 +20,10 @@ abstract class GameSession with _$GameSession {
     required GameModeType mode,
     required RoundOutcome outcome,
     @Default(false) bool frameRemoved,
-    // Booster charges for *this attempt only*. Classic Mode always starts
-    // at zero (it has no boosters at all, per the GDD); an unlocked Level
-    // Mode attempt starts at `BoosterConstants` defaults and resets to
-    // those defaults again on every retry — see `GameEngine.boostersEnabled`.
+    // The engine's live working copy of the player's booster charges for
+    // this round, seeded from `PlayerProgress` by `GameController` and
+    // synced back there after every use — see `GameEngine`'s doc comment.
+    // Classic Mode always starts at zero (it has no boosters at all).
     @Default(0) int rotateCharges,
     @Default(0) int swapCharges,
     @Default(0) int singleCellRemoveCharges,

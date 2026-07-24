@@ -1,6 +1,7 @@
 import 'package:bb_block/core/providers/audio_providers.dart';
 import 'package:bb_block/core/providers/haptics_providers.dart';
 import 'package:bb_block/core/providers/persistence_providers.dart';
+import 'package:bb_block/features/booster/domain/booster_kind.dart';
 import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
 import 'package:bb_block/features/persistence/domain/player_progress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -86,37 +87,55 @@ void main() {
     );
   });
 
-  test('spendGoldKey succeeds and decrements when a key is available',
+  test('syncBoosterCharges writes back all three charge counts', () async {
+    final container = containerWith(FakeGameSaveRepository());
+    await container.read(playerProgressControllerProvider.future);
+    final controller =
+        container.read(playerProgressControllerProvider.notifier);
+
+    await controller.syncBoosterCharges(
+      rotate: 0,
+      swap: 2,
+      singleCellRemove: 1,
+    );
+
+    final progress = container.read(playerProgressControllerProvider).value!;
+    expect(progress.rotateCharges, 0);
+    expect(progress.swapCharges, 2);
+    expect(progress.singleCellRemoveCharges, 1);
+  });
+
+  test('refillBooster spends one key and adds one charge of the chosen kind',
       () async {
     final container = containerWith(
-      FakeGameSaveRepository(const PlayerProgress(goldKeyCount: 1)),
+      FakeGameSaveRepository(
+        const PlayerProgress(goldKeyCount: 1, rotateCharges: 0),
+      ),
     );
     await container.read(playerProgressControllerProvider.future);
     final controller =
         container.read(playerProgressControllerProvider.notifier);
 
-    final spent = await controller.spendGoldKey();
+    final refilled = await controller.refillBooster(BoosterKind.rotate);
 
-    expect(spent, isTrue);
-    expect(
-      container.read(playerProgressControllerProvider).value!.goldKeyCount,
-      0,
-    );
+    expect(refilled, isTrue);
+    final progress = container.read(playerProgressControllerProvider).value!;
+    expect(progress.rotateCharges, 1);
+    expect(progress.goldKeyCount, 0);
   });
 
-  test('spendGoldKey fails and leaves state untouched with zero keys',
+  test('refillBooster fails and leaves charges untouched with zero keys',
       () async {
     final container = containerWith(FakeGameSaveRepository());
     await container.read(playerProgressControllerProvider.future);
     final controller =
         container.read(playerProgressControllerProvider.notifier);
 
-    final spent = await controller.spendGoldKey();
+    final refilled = await controller.refillBooster(BoosterKind.swap);
 
-    expect(spent, isFalse);
-    expect(
-      container.read(playerProgressControllerProvider).value!.goldKeyCount,
-      0,
-    );
+    expect(refilled, isFalse);
+    final progress = container.read(playerProgressControllerProvider).value!;
+    expect(progress.swapCharges, const PlayerProgress().swapCharges);
+    expect(progress.goldKeyCount, 0);
   });
 }
