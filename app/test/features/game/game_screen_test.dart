@@ -87,4 +87,45 @@ void main() {
     // Default charges are 1/1/1.
     expect(find.text('1'), findsNWidgets(3));
   });
+
+  testWidgets('the pause button shows an overlay, and Devam Et dismisses it',
+      (tester) async {
+    await tester.pumpWidget(
+      wrap(const GameLaunchConfig(mode: GameModeType.classic)),
+    );
+    await tester.pump();
+
+    expect(find.text('Duraklatıldı'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.pause));
+    await tester.pump();
+
+    expect(find.text('Duraklatıldı'), findsOneWidget);
+
+    await tester.tap(find.text('Devam Et'));
+    await tester.pump();
+
+    expect(find.text('Duraklatıldı'), findsNothing);
+  });
+
+  testWidgets(
+      'backgrounding the app mid-round pauses it, visible again on return',
+      (tester) async {
+    await tester.pumpWidget(
+      wrap(const GameLaunchConfig(mode: GameModeType.classic)),
+    );
+    await tester.pump();
+
+    // The engine binding deliberately suppresses frames while the
+    // simulated app is AppLifecycleState.paused (it mirrors real OS
+    // behaviour: a backgrounded app isn't drawing). setState still runs
+    // and marks the pause dirty, but nothing paints until state returns to
+    // resumed — exactly when the player would actually see the screen
+    // again, so this sequence matches what really happens on-device.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+
+    expect(find.text('Duraklatıldı'), findsOneWidget);
+  });
 }

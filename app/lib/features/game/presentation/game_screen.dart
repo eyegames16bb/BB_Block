@@ -25,12 +25,40 @@ class GameScreen extends ConsumerStatefulWidget {
   ConsumerState<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends ConsumerState<GameScreen> {
+class _GameScreenState extends ConsumerState<GameScreen>
+    with WidgetsBindingObserver {
   _ArmedBooster? _armed;
+  bool _isPaused = false;
 
   bool get _boostersVisible =>
       widget.config.mode == GameModeType.level &&
       widget.config.levelBoostersUnlocked;
+
+  @override
+  void initState() {
+    super.initState();
+    // Backgrounding mid-round (a call, switching apps, the OS lock screen)
+    // pauses the round rather than leaving the board live and exposed to
+    // phantom touches on return — the player must explicitly resume.
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final wentToBackground = state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden;
+    if (!wentToBackground || !mounted) return;
+
+    final session = ref.read(gameControllerProvider(widget.config));
+    if (session.isOver) return;
+    setState(() => _isPaused = true);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +74,11 @@ class _GameScreenState extends ConsumerState<GameScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  _Header(config: config, session: session),
+                  _Header(
+                    config: config,
+                    session: session,
+                    onPause: () => setState(() => _isPaused = true),
+                  ),
                   Expanded(
                     child: LayoutBuilder(
                       builder: (context, constraints) {
@@ -129,6 +161,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 ],
               ),
             ),
+            if (_isPaused && !session.isOver)
+              _PauseOverlay(onResume: () => setState(() => _isPaused = false)),
             if (session.isOver)
               _RoundOverlay(config: config, session: session),
           ],
@@ -139,10 +173,15 @@ class _GameScreenState extends ConsumerState<GameScreen> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.config, required this.session});
+  const _Header({
+    required this.config,
+    required this.session,
+    required this.onPause,
+  });
 
   final GameLaunchConfig config;
   final GameSession session;
+  final VoidCallback onPause;
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +202,58 @@ class _Header extends StatelessWidget {
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
         ),
+        IconButton(
+          onPressed: onPause,
+          icon: const Icon(Icons.pause),
+        ),
       ],
+    );
+  }
+}
+
+class _PauseOverlay extends StatelessWidget {
+  const _PauseOverlay({required this.onResume});
+
+  final VoidCallback onResume;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.black.withValues(alpha: 0.7),
+      child: Center(
+        child: Card(
+          color: AppColors.navy,
+          margin: const EdgeInsets.all(32),
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Duraklatıldı',
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(color: AppColors.paper),
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: onResume,
+                  child: const Text('Devam Et'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => context.pop(),
+                  child: const Text(
+                    'Ana Menü',
+                    style: TextStyle(color: AppColors.paper),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

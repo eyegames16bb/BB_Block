@@ -30,6 +30,7 @@ lib/
     constants/     — büyü sayı yok: board boyutu, puan sabitleri, level eşiği burada
     theme/         — renk/tipografi token'ları
     routing/       — go_router
+    providers/     — Audio/Haptics/Ads/Persistence servisleri için Riverpod seam'leri
     services/      — Audio/Haptics/Ads: arayüz + implementasyon ayrı dosyalarda (SRP)
     utils/
   features/
@@ -37,7 +38,6 @@ lib/
     piece_generation/domain — Factory Pattern: WeightedPieceGenerator (ağırlıklı rastgele + çözülebilirlik garantisi)
     scoring/domain           — Strategy Pattern: ClassicScoringStrategy / LevelScoringStrategy
     game_mode/domain         — Strategy Pattern: GameModeStrategy + RoundOutcome
-    game_state/domain        — State Machine: GameState (Freezed sealed union)
     game_engine/domain       — Orkestrasyon: GameEngine + GameSession + GameEvent (saf Dart)
     booster/domain           — Command Pattern: Rotate/Swap/SingleCellRemove
     persistence/domain+data   — Repository Pattern: GameSaveRepository + local (SharedPreferences) impl
@@ -71,6 +71,7 @@ Engine (board/scoring/piece_generation/booster/game_engine) UI'dan tamamen bağ�
 - **Sürükle-bırak**: Parçanın (0,0) hücresi işaretçinin altındaki hücreye çapalanıyor (`pointerDragAnchorStrategy`) ve şekil tahtada kalacak şekilde clamp'leniyor. Kullanışlı ama parmağın altında kalıyor; ileride yukarı ofset/geliştirme yapılabilir. Geçersiz bir yere bırakma da artık `onPlace`'e ulaşıyor — engine tek doğruluk kaynağı, widget'taki `_validator` yalnızca sürükleme sırasındaki hayalet önizleme rengi için (önceden bu ayrım yoktu, geçersiz bırakışlar hiçbir geri bildirim tetiklemiyordu — düzeltildi).
 - **Booster etkileşim modeli basit**: Rotate/Single Cell Remove "silahlan → hedefe dokun" akışıyla çalışıyor (Swap anında uygulanır). `PieceTray`'de aynı anda hem `Draggable` hem `GestureDetector` aktif — jest arenası çakışması yaşanmadı ama ileride ince UX cilası (sürükleme sırasında dokunmayı devre dışı bırakmak gibi) gerekebilir.
 - **Ödüllü Reklam gerçek akışa bağlandı (test ID'leriyle)**: Ana menüdeki "Ödüllü Reklam" çipi artık `adsServiceProvider` (impl: `AdMobAdsService`) üzerinden gerçek `showRewardedAd` çağırıyor; reklam hazır değilse SnackBar gösteriyor, ödül kazanılırsa `PlayerProgressController.grantGoldKey` tetikleniyor. `AndroidManifest.xml`/`Info.plist`'e Google'ın herkese açık **test** AdMob App ID'leri eklendi (ad unit ID'leri zaten testti) — ikisi de mağaza gönderiminden önce gerçek ID'lerle değiştirilmeli. iOS `SKAdNetworkItems` listesi henüz eklenmedi (attribution'ı etkiler, temel reklam akışını değil). Gerçek cihaz/emülatörde hiç denenmedi — Android SDK cmdline-tools eksik olduğu için bu makineden derlenemiyor bile.
+- **Duraklatma (Pause)**: `GameScreen`, `WidgetsBindingObserver` ile uygulama arka plana alındığında (`paused`/`hidden`) round'u otomatik duraklatıyor; ayrıca header'da elle duraklatma butonu var. Devam etmek için oyuncunun "Devam Et"e dokunması gerekiyor (kazara dokunmaları önlemek için). Kullanılmayan, hiçbir yerde referans edilmeyen eski `game_state/domain/GameState` (Freezed union) kaldırıldı — bu pause implementasyonu onun yerini gerçek bir ihtiyaçla dolduruyor. Not: `flutter test`'te `AppLifecycleState.paused` simüle edilirken engine kareleri bilinçli olarak bastırıyor (gerçek OS davranışını taklit ediyor) — testte `resumed`'a dönülmeden overlay görünmez, bu gerçek cihaz davranışıyla tutarlı.
 
 ## Komutlar
 
