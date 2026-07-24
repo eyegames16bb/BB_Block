@@ -38,6 +38,7 @@ class BoardGrid extends StatefulWidget {
 class _BoardGridState extends State<BoardGrid> {
   static const PlacementValidator _validator = DefaultPlacementValidator();
   static const Duration _fillPopDuration = Duration(milliseconds: 260);
+  static const Duration _clearBreakDuration = Duration(milliseconds: 320);
 
   final GlobalKey _gridKey = GlobalKey();
   _Preview? _preview;
@@ -46,6 +47,12 @@ class _BoardGridState extends State<BoardGrid> {
   // TweenAnimationBuilder keyed on it below plays its pop-in once per
   // placement and then holds steady — never replaying on unrelated rebuilds.
   final Map<GridPosition, int> _fillGeneration = {};
+
+  // Cells mid line-clear: the board already reports them empty, but we keep
+  // rendering their wood tile here — fading and bursting outward — for one
+  // more animation cycle instead of having them vanish instantly.
+  final Set<GridPosition> _clearingCells = {};
+  final Map<GridPosition, int> _clearGeneration = {};
 
   @override
   void didUpdateWidget(covariant BoardGrid oldWidget) {
@@ -60,6 +67,10 @@ class _BoardGridState extends State<BoardGrid> {
         final isFilled = widget.board.cellAt(position) == CellState.filled;
         if (!wasFilled && isFilled) {
           _fillGeneration[position] = (_fillGeneration[position] ?? 0) + 1;
+        }
+        if (wasFilled && !isFilled) {
+          _clearingCells.add(position);
+          _clearGeneration[position] = (_clearGeneration[position] ?? 0) + 1;
         }
       }
     }
@@ -122,6 +133,8 @@ class _BoardGridState extends State<BoardGrid> {
           fit: StackFit.expand,
           children: [
             _baseCell(position, state, cellSize),
+            if (_clearingCells.contains(position))
+              _clearingOverlay(position, cellSize),
             if (previewColor != null)
               Padding(
                 padding: EdgeInsets.all(cellSize * 0.05),
@@ -175,6 +188,26 @@ class _BoardGridState extends State<BoardGrid> {
           ),
         );
     }
+  }
+
+  /// Renders a fading, outward-bursting wood tile for a cell that was just
+  /// cleared, then removes itself from [_clearingCells] once the animation
+  /// finishes so the (already-empty) base cell shows through permanently.
+  Widget _clearingOverlay(GridPosition position, double cellSize) {
+    return TweenAnimationBuilder<double>(
+      key: ValueKey('clear-$position-${_clearGeneration[position] ?? 0}'),
+      tween: Tween(begin: 0, end: 1),
+      duration: _clearBreakDuration,
+      curve: Curves.easeOut,
+      onEnd: () {
+        if (mounted) setState(() => _clearingCells.remove(position));
+      },
+      builder: (context, t, child) => Opacity(
+        opacity: 1 - t,
+        child: Transform.scale(scale: 1 + t * 0.35, child: child),
+      ),
+      child: WoodTile(size: cellSize),
+    );
   }
 
   Color? _previewColorFor(GridPosition position) {

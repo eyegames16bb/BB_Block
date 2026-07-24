@@ -1,5 +1,6 @@
 import 'package:bb_block/features/board/domain/entities/piece_shape.dart';
 import 'package:bb_block/features/game/presentation/widgets/board_grid.dart';
+import 'package:bb_block/features/game/presentation/widgets/wood_tile.dart';
 import 'package:bb_block/features/game_engine/domain/tray_piece.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -98,5 +99,39 @@ void main() {
     );
 
     expect(find.byType(TweenAnimationBuilder<double>), findsOneWidget);
+  });
+
+  testWidgets(
+      'a cleared cell keeps rendering its wood tile briefly, then '
+      'disappears once the break animation ends', (tester) async {
+    final filledBoard = boardFromRows(['X..', '...', '...']);
+    final clearedBoard = boardFromRows(['...', '...', '...']);
+
+    await tester.pumpWidget(
+      harness(
+        boardGrid:
+            BoardGrid(board: filledBoard, tray: const [], onPlace: (_, _) {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(
+      harness(
+        boardGrid: BoardGrid(
+          board: clearedBoard,
+          tray: const [],
+          onPlace: (_, _) {},
+        ),
+      ),
+    );
+
+    // Mid-animation: the board already reports the cell empty, but its
+    // wood tile is still on screen, fading/bursting out.
+    await tester.pump();
+    expect(find.byType(WoodTile), findsOneWidget);
+
+    // Once the break animation completes, the overlay removes itself.
+    await tester.pumpAndSettle();
+    expect(find.byType(WoodTile), findsNothing);
   });
 }
