@@ -30,6 +30,11 @@ class _GameScreenState extends ConsumerState<GameScreen>
   _ArmedBooster? _armed;
   bool _isPaused = false;
 
+  // Bumped every time the score goes up, so the keyed `_ScorePopup` below
+  // plays a fresh "+N" rise-and-fade each time instead of only once.
+  int _scorePopupGeneration = 0;
+  int _scorePopupDelta = 0;
+
   bool get _boostersVisible =>
       widget.config.mode == GameModeType.level &&
       widget.config.levelBoostersUnlocked;
@@ -65,6 +70,15 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final config = widget.config;
     final session = ref.watch(gameControllerProvider(config));
     final controller = ref.read(gameControllerProvider(config).notifier);
+
+    ref.listen<GameSession>(gameControllerProvider(config), (previous, next) {
+      if (previous != null && next.score > previous.score) {
+        setState(() {
+          _scorePopupDelta = next.score - previous.score;
+          _scorePopupGeneration++;
+        });
+      }
+    });
 
     return Scaffold(
       body: SafeArea(
@@ -161,6 +175,19 @@ class _GameScreenState extends ConsumerState<GameScreen>
                 ],
               ),
             ),
+            if (_scorePopupGeneration > 0)
+              IgnorePointer(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 70),
+                    child: _ScorePopup(
+                      key: ValueKey(_scorePopupGeneration),
+                      delta: _scorePopupDelta,
+                    ),
+                  ),
+                ),
+              ),
             if (_isPaused && !session.isOver)
               _PauseOverlay(onResume: () => setState(() => _isPaused = false)),
             if (session.isOver)
@@ -252,6 +279,40 @@ class _PauseOverlay extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A "+N" that rises and fades over the header when the score jumps —
+/// covers both a plain placement and a placement-plus-line-clear turn,
+/// since the controller republishes state once per turn with the combined
+/// total already applied.
+class _ScorePopup extends StatelessWidget {
+  const _ScorePopup({required this.delta, super.key});
+
+  final int delta;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 700),
+      curve: Curves.easeOut,
+      builder: (context, t, child) => Opacity(
+        opacity: 1 - t,
+        child: Transform.translate(
+          offset: Offset(0, -28 * t),
+          child: child,
+        ),
+      ),
+      child: Text(
+        '+$delta',
+        style: const TextStyle(
+          color: AppColors.gold,
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );

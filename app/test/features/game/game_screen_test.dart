@@ -1,6 +1,8 @@
 import 'package:bb_block/core/providers/audio_providers.dart';
 import 'package:bb_block/core/providers/haptics_providers.dart';
 import 'package:bb_block/core/providers/persistence_providers.dart';
+import 'package:bb_block/features/board/domain/entities/grid_position.dart';
+import 'package:bb_block/features/game/application/game_controller.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
 import 'package:bb_block/features/game/presentation/game_screen.dart';
 import 'package:bb_block/features/game/presentation/widgets/board_grid.dart';
@@ -127,5 +129,29 @@ void main() {
     await tester.pump();
 
     expect(find.text('Duraklatıldı'), findsOneWidget);
+  });
+
+  testWidgets('placing a piece shows a rising +N score popup',
+      (tester) async {
+    const config = GameLaunchConfig(mode: GameModeType.classic);
+    await tester.pumpWidget(wrap(config));
+    await tester.pump();
+
+    expect(find.textContaining('+'), findsNothing);
+
+    // Drive the same controller call BoardGrid's onPlace would make on a
+    // real drop, rather than simulating the drag gesture itself — that
+    // mechanics is already covered end-to-end by board_grid_test.dart.
+    // The board starts empty, so any tray piece fits at the origin.
+    final context = tester.element(find.byType(GameScreen));
+    ProviderScope.containerOf(context)
+        .read(gameControllerProvider(config).notifier)
+        .placePiece(
+          trayIndex: 0,
+          anchor: const GridPosition(row: 0, column: 0),
+        );
+    await tester.pump();
+
+    expect(find.textContaining('+'), findsOneWidget);
   });
 }
