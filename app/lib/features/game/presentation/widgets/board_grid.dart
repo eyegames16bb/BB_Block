@@ -37,9 +37,33 @@ class BoardGrid extends StatefulWidget {
 
 class _BoardGridState extends State<BoardGrid> {
   static const PlacementValidator _validator = DefaultPlacementValidator();
+  static const Duration _fillPopDuration = Duration(milliseconds: 260);
 
   final GlobalKey _gridKey = GlobalKey();
   _Preview? _preview;
+
+  // Bumped for a position exactly when it transitions to filled, so the
+  // TweenAnimationBuilder keyed on it below plays its pop-in once per
+  // placement and then holds steady — never replaying on unrelated rebuilds.
+  final Map<GridPosition, int> _fillGeneration = {};
+
+  @override
+  void didUpdateWidget(covariant BoardGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.board == widget.board) return;
+
+    for (var row = 0; row < widget.board.size; row++) {
+      for (var column = 0; column < widget.board.size; column++) {
+        final position = GridPosition(row: row, column: column);
+        final wasFilled =
+            oldWidget.board.cellAt(position) == CellState.filled;
+        final isFilled = widget.board.cellAt(position) == CellState.filled;
+        if (!wasFilled && isFilled) {
+          _fillGeneration[position] = (_fillGeneration[position] ?? 0) + 1;
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +121,7 @@ class _BoardGridState extends State<BoardGrid> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            _baseCell(state, cellSize),
+            _baseCell(position, state, cellSize),
             if (previewColor != null)
               Padding(
                 padding: EdgeInsets.all(cellSize * 0.05),
@@ -124,10 +148,20 @@ class _BoardGridState extends State<BoardGrid> {
     );
   }
 
-  Widget _baseCell(CellState state, double cellSize) {
+  Widget _baseCell(GridPosition position, CellState state, double cellSize) {
     switch (state) {
       case CellState.filled:
-        return WoodTile(size: cellSize);
+        return TweenAnimationBuilder<double>(
+          key: ValueKey(
+            'fill-$position-${_fillGeneration[position] ?? 0}',
+          ),
+          tween: Tween(begin: 0.5, end: 1),
+          duration: _fillPopDuration,
+          curve: Curves.elasticOut,
+          builder: (context, scale, child) =>
+              Transform.scale(scale: scale, child: child),
+          child: WoodTile(size: cellSize),
+        );
       case CellState.frame:
         return WoodTile(size: cellSize, isFrame: true);
       case CellState.empty:
@@ -200,9 +234,16 @@ class _BoardGridState extends State<BoardGrid> {
     return GridPosition(row: row, column: column);
   }
 
+  /// Always forwards the drop to `widget.onPlace`, valid or not — the
+  /// engine is the single source of truth for placement validity (it
+  /// re-checks independently and reports `GameEvent.invalidMove` for a
+  /// rejected drop, which is what drives the invalid-move haptic/SFX). The
+  /// local `_validator` here only paints the ghost preview color while
+  /// dragging; it must never gate the actual action, or a rejected drop
+  /// would give the player no feedback at all once they lift their finger.
   void _commitPreview() {
     final preview = _preview;
-    if (preview != null && preview.isValid) {
+    if (preview != null) {
       widget.onPlace(preview.trayIndex, preview.anchor);
     }
     setState(() => _preview = null);
