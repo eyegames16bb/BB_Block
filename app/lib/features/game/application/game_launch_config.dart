@@ -11,5 +11,10 @@ abstract class GameLaunchConfig with _$GameLaunchConfig {
   const factory GameLaunchConfig({
     required GameModeType mode,
     @Default(false) bool classicHasFrame,
+    // Only meaningful when mode == level. True means the player spent a
+    // Gold Key before starting, unlocking boosters for this level attempt
+    // — and every retry of it, per the GDD ("sonsuz tekrarda dahi olsa").
+    // Classic Mode never has boosters, so this stays false for it.
+    @Default(false) bool levelBoostersUnlocked,
   }) = _GameLaunchConfig;
 }

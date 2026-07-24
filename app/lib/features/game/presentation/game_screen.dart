@@ -5,6 +5,7 @@ import 'package:bb_block/core/theme/app_theme.dart';
 import 'package:bb_block/features/game/application/game_controller.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
 import 'package:bb_block/features/game/presentation/widgets/board_grid.dart';
+import 'package:bb_block/features/game/presentation/widgets/booster_bar.dart';
 import 'package:bb_block/features/game/presentation/widgets/piece_tray.dart';
 import 'package:bb_block/features/game_engine/domain/game_session.dart';
 import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
@@ -13,13 +14,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class GameScreen extends ConsumerWidget {
+enum _ArmedBooster { rotate, remove }
+
+class GameScreen extends ConsumerStatefulWidget {
   const GameScreen({required this.config, super.key});
 
   final GameLaunchConfig config;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GameScreen> createState() => _GameScreenState();
+}
+
+class _GameScreenState extends ConsumerState<GameScreen> {
+  _ArmedBooster? _armed;
+
+  bool get _boostersVisible =>
+      widget.config.mode == GameModeType.level &&
+      widget.config.levelBoostersUnlocked;
+
+  @override
+  Widget build(BuildContext context) {
+    final config = widget.config;
     final session = ref.watch(gameControllerProvider(config));
     final controller = ref.read(gameControllerProvider(config).notifier);
 
@@ -36,11 +51,13 @@ class GameScreen extends ConsumerWidget {
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         // Cap the board to the smaller of the available width
-                        // and ~74% of the height, so the board plus the tray
-                        // below always fit without overflow on any screen.
+                        // and a height budget that leaves room for the tray
+                        // (and the booster bar, when shown) below it, so
+                        // nothing overflows on any screen.
+                        final reservedHeight = _boostersVisible ? 88.0 : 0.0;
                         final boardSide = math.min(
                           constraints.maxWidth,
-                          constraints.maxHeight * 0.74,
+                          (constraints.maxHeight - reservedHeight) * 0.74,
                         );
                         final cellSize = boardSide / session.board.size;
 
@@ -53,6 +70,11 @@ class GameScreen extends ConsumerWidget {
                               child: BoardGrid(
                                 board: session.board,
                                 tray: session.tray,
+                                removalArmed: _armed == _ArmedBooster.remove,
+                                onCellTap: (position) {
+                                  controller.removeCell(position);
+                                  setState(() => _armed = null);
+                                },
                                 onPlace: (trayIndex, anchor) =>
                                     controller.placePiece(
                                   trayIndex: trayIndex,
@@ -67,8 +89,38 @@ class GameScreen extends ConsumerWidget {
                               child: PieceTray(
                                 tray: session.tray,
                                 dragCellSize: cellSize,
+                                rotateArmed: _armed == _ArmedBooster.rotate,
+                                onPieceTap: (trayIndex) {
+                                  controller.rotatePiece(trayIndex);
+                                  setState(() => _armed = null);
+                                },
                               ),
                             ),
+                            if (_boostersVisible) ...[
+                              const SizedBox(height: 16),
+                              BoosterBar(
+                                rotateCharges: session.rotateCharges,
+                                swapCharges: session.swapCharges,
+                                singleCellRemoveCharges:
+                                    session.singleCellRemoveCharges,
+                                rotateArmed: _armed == _ArmedBooster.rotate,
+                                removalArmed: _armed == _ArmedBooster.remove,
+                                onRotateTap: () => setState(
+                                  () => _armed = _armed == _ArmedBooster.rotate
+                                      ? null
+                                      : _ArmedBooster.rotate,
+                                ),
+                                onSwapTap: () {
+                                  controller.swapTray();
+                                  setState(() => _armed = null);
+                                },
+                                onRemovalTap: () => setState(
+                                  () => _armed = _armed == _ArmedBooster.remove
+                                      ? null
+                                      : _ArmedBooster.remove,
+                                ),
+                              ),
+                            ],
                           ],
                         );
                       },

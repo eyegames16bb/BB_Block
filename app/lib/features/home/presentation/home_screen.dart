@@ -29,7 +29,9 @@ class HomeScreen extends ConsumerWidget {
                   _TopChip(
                     icon: Icons.movie_outlined,
                     label: 'Ödüllü Reklam',
-                    onTap: () {},
+                    onTap: () => ref
+                        .read(playerProgressControllerProvider.notifier)
+                        .grantGoldKey(),
                   ),
                   _TopChip(
                     icon: Icons.vpn_key_outlined,
@@ -49,10 +51,7 @@ class HomeScreen extends ConsumerWidget {
               const Spacer(),
               _ModeButton(
                 label: 'Level Mod',
-                onTap: () => context.push(
-                  AppRoutes.game,
-                  extra: const GameLaunchConfig(mode: GameModeType.level),
-                ),
+                onTap: () => _startLevel(context, ref, progress.goldKeyCount),
               ),
               const SizedBox(height: 12),
               _ModeButton(
@@ -80,6 +79,33 @@ class HomeScreen extends ConsumerWidget {
       extra: GameLaunchConfig(
         mode: GameModeType.classic,
         classicHasFrame: hasFrame,
+      ),
+    );
+  }
+
+  Future<void> _startLevel(
+    BuildContext context,
+    WidgetRef ref,
+    int goldKeyCount,
+  ) async {
+    final useKey = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: AppColors.paper,
+      builder: (context) => _GoldKeyChoiceSheet(goldKeyCount: goldKeyCount),
+    );
+    if (useKey == null || !context.mounted) return;
+
+    final boostersUnlocked = useKey &&
+        await ref
+            .read(playerProgressControllerProvider.notifier)
+            .spendGoldKey();
+    if (!context.mounted) return;
+
+    await context.push(
+      AppRoutes.game,
+      extra: GameLaunchConfig(
+        mode: GameModeType.level,
+        levelBoostersUnlocked: boostersUnlocked,
       ),
     );
   }
@@ -141,6 +167,48 @@ class _FrameChoiceSheet extends StatelessWidget {
   }
 }
 
+class _GoldKeyChoiceSheet extends StatelessWidget {
+  const _GoldKeyChoiceSheet({required this.goldKeyCount});
+
+  final int goldKeyCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final canUseKey = goldKeyCount > 0;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Level Mod',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '$goldKeyCount Altın Anahtarın var',
+              style: TextStyle(color: AppColors.ink.withValues(alpha: 0.7)),
+            ),
+            const SizedBox(height: 16),
+            _ModeButton(
+              label: 'Anahtarsız Başla',
+              onTap: () => Navigator.of(context).pop(false),
+            ),
+            const SizedBox(height: 12),
+            _ModeButton(
+              label: 'Altın Anahtar İle Başla',
+              onTap:
+                  canUseKey ? () => Navigator.of(context).pop(true) : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _TopChip extends StatelessWidget {
   const _TopChip({
     required this.icon,
@@ -183,7 +251,7 @@ class _ModeButton extends StatelessWidget {
   const _ModeButton({required this.label, required this.onTap});
 
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

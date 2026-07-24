@@ -1,3 +1,4 @@
+import 'package:bb_block/core/constants/app_constants.dart';
 import 'package:bb_block/features/board/domain/entities/board.dart';
 import 'package:bb_block/features/board/domain/entities/cell_state.dart';
 import 'package:bb_block/features/board/domain/entities/grid_position.dart';
@@ -19,6 +20,7 @@ void main() {
     List<List<PieceShape>>? script,
     int pointsPerLine = 10,
     int? frameThreshold,
+    bool boostersEnabled = true,
   }) {
     return GameEngine(
       mode: FakeModeStrategy(
@@ -29,6 +31,7 @@ void main() {
       generator: ScriptedPieceGenerator(
         script ?? [List.filled(3, single)],
       ),
+      boostersEnabled: boostersEnabled,
     );
   }
 
@@ -298,6 +301,89 @@ void main() {
       // A frame cell can never be removed.
       final refused = engine.removeCell(const GridPosition(row: 0, column: 0));
       expect(refused, [const GameEvent.invalidMove()]);
+    });
+  });
+
+  group('booster charges', () {
+    test('Classic Mode (boostersEnabled: false) starts with zero charges',
+        () {
+      final engine = engineOn(Board.empty(), boostersEnabled: false);
+
+      expect(engine.session.rotateCharges, 0);
+      expect(engine.session.swapCharges, 0);
+      expect(engine.session.singleCellRemoveCharges, 0);
+    });
+
+    test('boosters are refused outright when disabled', () {
+      final lShape = shapeById(PieceShapeId.lTriomino0);
+      final engine = engineOn(
+        boardFromRows(['#X#', '#X#', '###']),
+        boostersEnabled: false,
+        script: [
+          [lShape, single, single],
+        ],
+      );
+
+      expect(engine.rotatePiece(0), [const GameEvent.invalidMove()]);
+      expect(engine.swapTray(), [const GameEvent.invalidMove()]);
+      expect(
+        engine.removeCell(const GridPosition(row: 0, column: 1)),
+        [const GameEvent.invalidMove()],
+      );
+    });
+
+    test('an unlocked Level attempt starts with the default charge counts',
+        () {
+      final engine = engineOn(Board.framed());
+
+      expect(
+        engine.session.rotateCharges,
+        BoosterConstants.defaultRotateCharges,
+      );
+      expect(engine.session.swapCharges, BoosterConstants.defaultSwapCharges);
+      expect(
+        engine.session.singleCellRemoveCharges,
+        BoosterConstants.defaultSingleCellRemoveCharges,
+      );
+    });
+
+    test('each booster use consumes exactly one charge of its own kind', () {
+      final lShape = shapeById(PieceShapeId.lTriomino0);
+      final engine = engineOn(
+        Board.empty(),
+        script: [
+          [lShape, single, single],
+        ],
+      );
+
+      engine.rotatePiece(0);
+
+      expect(
+        engine.session.rotateCharges,
+        BoosterConstants.defaultRotateCharges - 1,
+      );
+      expect(engine.session.swapCharges, BoosterConstants.defaultSwapCharges);
+    });
+
+    test('a booster with zero charges left refuses further use', () {
+      final lShape = shapeById(PieceShapeId.lTriomino0);
+      final engine = engineOn(
+        Board.empty(),
+        script: [
+          [lShape, single, single],
+        ],
+      );
+
+      // Default rotate charge is 1 — the first rotate succeeds...
+      final first = engine.rotatePiece(0);
+      expect(first.first, isNot(const GameEvent.invalidMove()));
+
+      // ...the second must be refused, and the tray shape stays as it was.
+      final shapeAfterFirstRotate = engine.session.tray[0].shape;
+      final second = engine.rotatePiece(0);
+
+      expect(second, [const GameEvent.invalidMove()]);
+      expect(engine.session.tray[0].shape, shapeAfterFirstRotate);
     });
   });
 }

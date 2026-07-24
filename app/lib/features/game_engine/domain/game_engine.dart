@@ -1,3 +1,4 @@
+import 'package:bb_block/core/constants/app_constants.dart';
 import 'package:bb_block/features/board/domain/entities/board.dart';
 import 'package:bb_block/features/board/domain/entities/grid_position.dart';
 import 'package:bb_block/features/board/domain/services/line_clear_resolver.dart';
@@ -19,12 +20,18 @@ import 'package:bb_block/features/piece_generation/domain/piece_generator.dart';
 /// layer can react (audio/haptics/animation) without knowing any internals.
 ///
 /// It imports nothing from Flutter — it is pure Dart and fully unit-testable.
-/// Booster methods here perform only the mechanical transform; charge
-/// accounting lives in the app layer, not the engine.
+///
+/// Classic Mode never has boosters (the GDD is explicit: "Bu oyun modunda
+/// tamamlayıcı olmayacaktır"). A Level Mode attempt only gets them if the
+/// caller passes `boostersEnabled: true` — the app layer decides that from
+/// whether the player spent a Gold Key to unlock this level. Charges then
+/// reset to [BoosterConstants] defaults on *every* fresh `GameEngine`
+/// instance, including retries of the same level — see `GameLaunchConfig`.
 class GameEngine {
   GameEngine({
     required GameModeStrategy mode,
     required PieceGenerator generator,
+    bool boostersEnabled = true,
     PlacementValidator? placementValidator,
     LineClearResolver? lineClearResolver,
     RotatePieceCommand rotateCommand = const RotatePieceCommand(),
@@ -33,6 +40,7 @@ class GameEngine {
     SwapPiecesCommand? swapCommand,
   })  : _mode = mode,
         _generator = generator,
+        _boostersEnabled = boostersEnabled,
         _placementValidator =
             placementValidator ?? const DefaultPlacementValidator(),
         _lineClearResolver =
@@ -45,6 +53,7 @@ class GameEngine {
 
   final GameModeStrategy _mode;
   final PieceGenerator _generator;
+  final bool _boostersEnabled;
   final PlacementValidator _placementValidator;
   final LineClearResolver _lineClearResolver;
   final RotatePieceCommand _rotateCommand;
@@ -63,6 +72,12 @@ class GameEngine {
       score: 0,
       mode: _mode.type,
       outcome: const RoundOutcome.ongoing(),
+      rotateCharges:
+          _boostersEnabled ? BoosterConstants.defaultRotateCharges : 0,
+      swapCharges: _boostersEnabled ? BoosterConstants.defaultSwapCharges : 0,
+      singleCellRemoveCharges: _boostersEnabled
+          ? BoosterConstants.defaultSingleCellRemoveCharges
+          : 0,
     );
   }
 
@@ -148,10 +163,14 @@ class GameEngine {
     return events;
   }
 
-  /// Rotates the tray piece at [trayIndex] 90° clockwise in place.
+  /// Rotates the tray piece at [trayIndex] 90° clockwise in place. Consumes
+  /// one rotate charge; unavailable at zero charges (including Classic Mode,
+  /// which always starts at zero).
   List<GameEvent> rotatePiece(int trayIndex) {
     final piece = _session.tray[trayIndex];
-    if (_session.isOver || piece.isUsed) return const [GameEvent.invalidMove()];
+    if (_session.isOver || piece.isUsed || _session.rotateCharges <= 0) {
+      return const [GameEvent.invalidMove()];
+    }
 
     final rotatedShape = _rotateCommand.execute(piece.shape);
     final tray = [
@@ -160,28 +179,39 @@ class GameEngine {
         else _session.tray[i],
     ];
 
-    _session = _session.copyWith(tray: tray);
+    _session = _session.copyWith(
+      tray: tray,
+      rotateCharges: _session.rotateCharges - 1,
+    );
     return [
       GameEvent.pieceRotated(trayIndex: trayIndex),
       ..._reevaluateOutcome(),
     ];
   }
 
-  /// Replaces the entire tray with a fresh batch of small pieces.
+  /// Replaces the entire tray with a fresh batch of small pieces. Consumes
+  /// one swap charge.
   List<GameEvent> swapTray() {
-    if (_session.isOver) return const [GameEvent.invalidMove()];
+    if (_session.isOver || _session.swapCharges <= 0) {
+      return const [GameEvent.invalidMove()];
+    }
 
     final shapes = _swapCommand.execute(board: _session.board);
     final tray = [for (final shape in shapes) TrayPiece(shape: shape)];
 
-    _session = _session.copyWith(tray: tray);
+    _session = _session.copyWith(
+      tray: tray,
+      swapCharges: _session.swapCharges - 1,
+    );
     return [const GameEvent.traySwapped(), ..._reevaluateOutcome()];
   }
 
   /// Erases a single player-placed cell at [position]. Frame cells are never
-  /// eligible (see [SingleCellRemoveCommand]).
+  /// eligible (see [SingleCellRemoveCommand]). Consumes one single-cell-
+  /// remove charge.
   List<GameEvent> removeCell(GridPosition position) {
     if (_session.isOver ||
+        _session.singleCellRemoveCharges <= 0 ||
         !_singleCellRemoveCommand.canExecute(
           board: _session.board,
           target: position,
@@ -194,7 +224,10 @@ class GameEngine {
       target: position,
     );
 
-    _session = _session.copyWith(board: board);
+    _session = _session.copyWith(
+      board: board,
+      singleCellRemoveCharges: _session.singleCellRemoveCharges - 1,
+    );
     return [
       GameEvent.cellRemoved(position: position),
       ..._reevaluateOutcome(),

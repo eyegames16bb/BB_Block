@@ -38,6 +38,26 @@ class PlayerProgressController extends _$PlayerProgressController {
     await _persist(current.copyWith(currentLevel: current.currentLevel + 1));
   }
 
+  /// Rewarded-ad payout. The actual ad SDK isn't wired up yet (see
+  /// `AdMobAdsService`) — callers currently invoke this the moment a
+  /// simulated ad view completes.
+  Future<void> grantGoldKey() async {
+    final current = state.value ?? const PlayerProgress();
+    await _persist(
+      current.copyWith(goldKeyCount: current.goldKeyCount + 1),
+    );
+  }
+
+  /// Spends one Gold Key if available, for unlocking boosters on a Level
+  /// Mode attempt. Returns whether it succeeded — the caller must not
+  /// proceed to start a boosted attempt on `false`.
+  Future<bool> spendGoldKey() async {
+    final current = state.value ?? const PlayerProgress();
+    if (current.goldKeyCount <= 0) return false;
+    await _persist(current.copyWith(goldKeyCount: current.goldKeyCount - 1));
+    return true;
+  }
+
   Future<void> _persist(PlayerProgress progress) async {
     await ref.read(gameSaveRepositoryProvider).save(progress);
     state = AsyncData(progress);

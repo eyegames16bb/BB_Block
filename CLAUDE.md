@@ -56,21 +56,21 @@ Engine (board/scoring/piece_generation/booster/game_engine) UI'dan tamamen bağ�
 3. **Puanlama**: GDD metni aynen — Çerçeve VAR=8, Çerçeve YOK=9, Level&lt;900=8, Level≥900=9 puan/sıra. Kasıtlı zorluk dengesi olarak kabul edildi.
 4. **Çerçeve kaldırma efekti**: GDD'nin "aynı animasyon" ifadesi yerine ayrı bir **Frame Destroy** efekti (parçalanma + toz + ayrı ses) kullanılacak — henüz implement edilmedi, `SoundEffect.frameDestroy` yalnızca tanımlı.
 5. **Level ilerleme**: v1'de tek düzey davranış — her level aynı kurallarla çalışır, level numarası yalnızca ilerleme sayacı. Zorluk eğrisi tasarımı ertelendi (mimari `GameModeStrategy` ile buna hazır).
-6. **Tamamlayıcı başlangıç sayıları**: Rotate=1, Swap=1, Single Cell Remove=1 (`BoosterConstants`). Daha fazlası ödüllü reklamla kazanılır.
+6. **Tamamlayıcı şarj modeli**: Klasik Mod'da tamamlayıcı hiç yok (GDD: "Bu oyun modunda tamamlayıcı olmayacaktır"). Level Mod'da bir Altın Anahtar harcanarak bölüm kilidi açılır (`GameLaunchConfig.levelBoostersUnlocked`); açıldıktan sonra **her deneme** (retry dahil) taze Rotate=1/Swap=1/Single Cell Remove=1 ile başlar (`BoosterConstants`, `GameEngine(boostersEnabled: ...)`). Şarjlar hesap genelinde kalıcı değildir — `PlayerProgress`'te değil, `GameSession`'da yaşar.
 7. **Combo**: Ekstra puan/çarpan yok. Çoklu sıra temizleme = `lineCount × pointsPerClearedLine`, doğrusal. "Combo"/"Multiple Line Complete" yalnızca ses/animasyon geri bildirimi olarak kalıyor, puanlamayı etkilemiyor.
 8. **HUD "+" butonları**: Yok. Mockup'taki inline "+" butonları bilinçli olarak uygulanmıyor — tamamlayıcı yenileme ayrı bir akış (ödüllü reklam) üzerinden olacak, henüz UI'da tasarlanmadı.
 
 ## Bilinen açık noktalar (henüz kapatılmadı)
 
-- Booster edge case: "Tek Nokta Silici" çerçeve hücresini hedefleyemez (kod bunu zaten uyguluyor, `SingleCellRemoveCommand`), ama bu davranış kullanıcıyla ayrıca teyit edilmedi.
 - Asset lisansları: **Mixkit** SFX lisansının oyun içi kullanımı yasaklıyor olabileceği, **Zapsplat**'ın ücretsiz planda atıf zorunluluğu getirdiği tespit edildi — kullanılmadan önce manuel doğrulanmalı.
 - Ses/görsel/font varlıkları henüz yok. `AudioService` implementasyonu `assets/audio/sfx/*.mp3` ve `assets/audio/ambient/background_loop.mp3` bekliyor — dosyalar eklenmeden `pubspec.yaml`'a asset kaydı yapılmadı.
 - Org kimliği `com.bbblock` yer tutucudur — mağaza gönderiminden önce gerçek ters-domain ile değiştirilmeli (`app/android`, `app/ios` proje ayarları).
 - Android SDK cmdline-tools eksik, lisanslar kabul edilmedi (`flutter doctor` bunu gösteriyor) — cihazda/emülatörde çalıştırmadan önce tamamlanmalı.
 - Git kimliği bu depoya özel ayarlandı (`digitalsynclab-cpu` / `digitalsynclab@gmail.com`); henüz uzak depo (GitHub vb.) yok.
-- **Booster UI yok**: Engine `rotatePiece`/`swapTray`/`removeCell` destekliyor ve `GameController` bunları açıyor, ama oyun ekranında henüz buton/etkileşim tasarlanmadı. Charge sayımı da app katmanında henüz yok (engine charge-agnostik).
 - **Ses/haptik/animasyon henüz bağlı değil**: `GameController._apply` içindeki `events` şu an tüketilmiyor (yorumla işaretli extension point). UI tamamen `GameSession` state'iyle sürülüyor. Frame Destroy / line-clear animasyonları bekliyor.
 - **Sürükle-bırak v1**: Parçanın (0,0) hücresi işaretçinin altındaki hücreye çapalanıyor (`pointerDragAnchorStrategy`) ve şekil tahtada kalacak şekilde clamp'leniyor. Kullanışlı ama parmağın altında kalıyor; ileride yukarı ofset/geliştirme yapılabilir.
+- **Booster etkileşim modeli basit**: Rotate/Single Cell Remove "silahlan → hedefe dokun" akışıyla çalışıyor (Swap anında uygulanır). `PieceTray`'de aynı anda hem `Draggable` hem `GestureDetector` aktif — jest arenası çakışması yaşanmadı ama ileride ince UX cilası (sürükleme sırasında dokunmayı devre dışı bırakmak gibi) gerekebilir.
+- **Ödüllü Reklam stub**: Ana menüdeki "Ödüllü Reklam" çipi gerçek bir reklam göstermeden doğrudan +1 Altın Anahtar veriyor (`PlayerProgressController.grantGoldKey`) — `AdMobAdsService` henüz bu akışa bağlanmadı.
 
 ## Komutlar
 

@@ -10,17 +10,26 @@ import 'package:flutter/material.dart';
 /// The 9×9 play surface. Renders the current [board], accepts pieces dragged
 /// from the tray (identified by their tray index), shows a live ghost preview
 /// of where the piece would land, and calls [onPlace] on a valid drop.
+///
+/// When [removalArmed] is true (the Single Cell Remove booster is active),
+/// dragging is bypassed and tapping any filled cell calls [onCellTap]
+/// instead — frame cells are never tappable, matching the engine's own
+/// refusal to remove them.
 class BoardGrid extends StatefulWidget {
   const BoardGrid({
     required this.board,
     required this.tray,
     required this.onPlace,
+    this.removalArmed = false,
+    this.onCellTap,
     super.key,
   });
 
   final Board board;
   final List<TrayPiece> tray;
   final void Function(int trayIndex, GridPosition anchor) onPlace;
+  final bool removalArmed;
+  final void Function(GridPosition position)? onCellTap;
 
   @override
   State<BoardGrid> createState() => _BoardGridState();
@@ -78,25 +87,39 @@ class _BoardGridState extends State<BoardGrid> {
   Widget _cell(GridPosition position, double cellSize) {
     final state = widget.board.cellAt(position);
     final previewColor = _previewColorFor(position);
+    final removable = widget.removalArmed && state == CellState.filled;
 
-    return SizedBox(
-      width: cellSize,
-      height: cellSize,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          _baseCell(state, cellSize),
-          if (previewColor != null)
-            Padding(
-              padding: EdgeInsets.all(cellSize * 0.05),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: previewColor,
-                  borderRadius: BorderRadius.circular(cellSize * 0.16),
+    return GestureDetector(
+      onTap: removable ? () => widget.onCellTap?.call(position) : null,
+      child: SizedBox(
+        width: cellSize,
+        height: cellSize,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _baseCell(state, cellSize),
+            if (previewColor != null)
+              Padding(
+                padding: EdgeInsets.all(cellSize * 0.05),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: previewColor,
+                    borderRadius: BorderRadius.circular(cellSize * 0.16),
+                  ),
                 ),
               ),
-            ),
-        ],
+            if (removable)
+              Padding(
+                padding: EdgeInsets.all(cellSize * 0.05),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: GamePalette.previewInvalid,
+                    borderRadius: BorderRadius.circular(cellSize * 0.16),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

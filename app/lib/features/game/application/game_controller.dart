@@ -31,6 +31,8 @@ class GameController extends _$GameController {
     _engine = GameEngine(
       mode: _strategyFor(config),
       generator: WeightedPieceGenerator(),
+      boostersEnabled:
+          config.mode == GameModeType.level && config.levelBoostersUnlocked,
     );
     return _engine.session;
   }
