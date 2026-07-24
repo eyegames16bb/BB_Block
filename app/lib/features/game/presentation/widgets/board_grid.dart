@@ -39,6 +39,7 @@ class _BoardGridState extends State<BoardGrid> {
   static const PlacementValidator _validator = DefaultPlacementValidator();
   static const Duration _fillPopDuration = Duration(milliseconds: 260);
   static const Duration _clearBreakDuration = Duration(milliseconds: 320);
+  static const Duration _frameBreakDuration = Duration(milliseconds: 520);
 
   final GlobalKey _gridKey = GlobalKey();
   _Preview? _preview;
@@ -54,6 +55,13 @@ class _BoardGridState extends State<BoardGrid> {
   final Set<GridPosition> _clearingCells = {};
   final Map<GridPosition, int> _clearGeneration = {};
 
+  // Same idea for the one-time Level Mode frame teardown (decision #4 in
+  // CLAUDE.md: a distinct effect from ordinary line clears, not the same
+  // animation) — bigger, slower, and staggered into an outward wave instead
+  // of every border cell fading uniformly at once.
+  final Set<GridPosition> _frameClearingCells = {};
+  final Map<GridPosition, int> _frameClearGeneration = {};
+
   @override
   void didUpdateWidget(covariant BoardGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -62,15 +70,20 @@ class _BoardGridState extends State<BoardGrid> {
     for (var row = 0; row < widget.board.size; row++) {
       for (var column = 0; column < widget.board.size; column++) {
         final position = GridPosition(row: row, column: column);
-        final wasFilled =
-            oldWidget.board.cellAt(position) == CellState.filled;
-        final isFilled = widget.board.cellAt(position) == CellState.filled;
-        if (!wasFilled && isFilled) {
+        final oldState = oldWidget.board.cellAt(position);
+        final newState = widget.board.cellAt(position);
+
+        if (oldState != CellState.filled && newState == CellState.filled) {
           _fillGeneration[position] = (_fillGeneration[position] ?? 0) + 1;
         }
-        if (wasFilled && !isFilled) {
+        if (oldState == CellState.filled && newState != CellState.filled) {
           _clearingCells.add(position);
           _clearGeneration[position] = (_clearGeneration[position] ?? 0) + 1;
+        }
+        if (oldState == CellState.frame && newState != CellState.frame) {
+          _frameClearingCells.add(position);
+          _frameClearGeneration[position] =
+              (_frameClearGeneration[position] ?? 0) + 1;
         }
       }
     }
@@ -135,6 +148,8 @@ class _BoardGridState extends State<BoardGrid> {
             _baseCell(position, state, cellSize),
             if (_clearingCells.contains(position))
               _clearingOverlay(position, cellSize),
+            if (_frameClearingCells.contains(position))
+              _frameClearingOverlay(position, cellSize),
             if (previewColor != null)
               Padding(
                 padding: EdgeInsets.all(cellSize * 0.05),
@@ -207,6 +222,33 @@ class _BoardGridState extends State<BoardGrid> {
         child: Transform.scale(scale: 1 + t * 0.35, child: child),
       ),
       child: WoodTile(size: cellSize),
+    );
+  }
+
+  /// The Level Mode 900-point frame teardown. Deliberately bigger, slower
+  /// and staggered (via an [Interval] keyed to distance from the top-left
+  /// corner) into an outward wave, so the whole border shattering reads as
+  /// a distinct, larger event rather than a big line clear.
+  Widget _frameClearingOverlay(GridPosition position, double cellSize) {
+    final delayFraction = ((position.row + position.column) /
+            (2 * widget.board.size))
+        .clamp(0.0, 0.5);
+
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(
+        'frame-clear-$position-${_frameClearGeneration[position] ?? 0}',
+      ),
+      tween: Tween(begin: 0, end: 1),
+      duration: _frameBreakDuration,
+      curve: Interval(delayFraction, 1, curve: Curves.easeOut),
+      onEnd: () {
+        if (mounted) setState(() => _frameClearingCells.remove(position));
+      },
+      builder: (context, t, child) => Opacity(
+        opacity: 1 - t,
+        child: Transform.scale(scale: 1 + t * 0.6, child: child),
+      ),
+      child: WoodTile(size: cellSize, isFrame: true),
     );
   }
 

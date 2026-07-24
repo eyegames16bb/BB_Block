@@ -134,4 +134,41 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(WoodTile), findsNothing);
   });
+
+  testWidgets(
+      'frame teardown keeps rendering frame tiles briefly, distinctly from '
+      'an ordinary line clear', (tester) async {
+    final framed = boardFromRows(['###', '#.#', '###']);
+    final frameless = boardFromRows(['...', '...', '...']);
+
+    await tester.pumpWidget(
+      harness(
+        boardGrid: BoardGrid(board: framed, tray: const [], onPlace: (_, _) {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(
+      harness(
+        boardGrid:
+            BoardGrid(board: frameless, tray: const [], onPlace: (_, _) {}),
+      ),
+    );
+
+    // Mid-animation: the border cells are gone from the board data, but
+    // their (frame) wood tiles are still on screen, breaking outward.
+    await tester.pump();
+    expect(
+      find.byWidgetPredicate((widget) => widget is WoodTile && widget.isFrame),
+      findsWidgets,
+    );
+
+    // Once the (longer, staggered) break animation fully completes, every
+    // overlay has removed itself.
+    await tester.pumpAndSettle();
+    expect(
+      find.byWidgetPredicate((widget) => widget is WoodTile && widget.isFrame),
+      findsNothing,
+    );
+  });
 }
