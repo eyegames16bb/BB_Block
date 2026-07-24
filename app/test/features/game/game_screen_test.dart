@@ -1,3 +1,4 @@
+import 'package:bb_block/core/providers/haptics_providers.dart';
 import 'package:bb_block/core/providers/persistence_providers.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
 import 'package:bb_block/features/game/presentation/game_screen.dart';
@@ -10,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_game_save_repository.dart';
+import '../../support/fake_haptics_service.dart';
 
 void main() {
   Widget wrap(GameLaunchConfig config) => ProviderScope(
@@ -17,6 +19,7 @@ void main() {
           gameSaveRepositoryProvider.overrideWithValue(
             FakeGameSaveRepository(),
           ),
+          hapticsServiceProvider.overrideWithValue(FakeHapticsService()),
         ],
         child: MaterialApp(home: GameScreen(config: config)),
       );

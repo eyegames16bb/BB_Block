@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:bb_block/core/providers/haptics_providers.dart';
 import 'package:bb_block/features/board/domain/entities/grid_position.dart';
+import 'package:bb_block/features/game/application/game_haptics.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
 import 'package:bb_block/features/game_engine/domain/game_engine.dart';
 import 'package:bb_block/features/game_engine/domain/game_event.dart';
@@ -53,9 +55,17 @@ class GameController extends _$GameController {
     if (events.any((event) => event is GameEventRoundEnded)) {
       _recordOutcome();
     }
-    // Extension point: audio, haptics and animation systems will consume
-    // `events` here once those systems land. Today the UI is driven purely
-    // by the republished session state.
+    _triggerHaptics(events);
+    // Extension point: audio and animation systems will consume `events`
+    // here once those systems land.
+  }
+
+  void _triggerHaptics(List<GameEvent> events) {
+    final haptics = ref.read(hapticsServiceProvider);
+    for (final event in events) {
+      final intensity = hapticIntensityFor(event);
+      if (intensity != null) unawaited(haptics.trigger(intensity));
+    }
   }
 
   void _recordOutcome() {
