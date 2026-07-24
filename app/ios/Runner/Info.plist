@@ -45,5 +45,12 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Google's public AdMob TEST App ID — safe for development, must be
+	     replaced with the real App ID from the AdMob console before any
+	     store submission (see CLAUDE.md). -->
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Bu izin, size daha alakalı reklamlar göstermemize yardımcı olur.</string>
 </dict>
 </plist>

@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:bb_block/core/providers/ads_providers.dart';
 import 'package:bb_block/core/routing/app_router.dart';
 import 'package:bb_block/core/theme/app_theme.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
@@ -29,9 +32,7 @@ class HomeScreen extends ConsumerWidget {
                   _TopChip(
                     icon: Icons.movie_outlined,
                     label: 'Ödüllü Reklam',
-                    onTap: () => ref
-                        .read(playerProgressControllerProvider.notifier)
-                        .grantGoldKey(),
+                    onTap: () => _watchRewardedAd(context, ref),
                   ),
                   _TopChip(
                     icon: Icons.vpn_key_outlined,
@@ -63,6 +64,26 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _watchRewardedAd(BuildContext context, WidgetRef ref) async {
+    final ads = ref.read(adsServiceProvider);
+    if (!ads.isRewardedAdReady) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Reklam henüz hazır değil, birazdan tekrar deneyin.'),
+        ),
+      );
+      return;
+    }
+
+    await ads.showRewardedAd(
+      onRewardEarned: () {
+        unawaited(
+          ref.read(playerProgressControllerProvider.notifier).grantGoldKey(),
+        );
+      },
     );
   }
 
