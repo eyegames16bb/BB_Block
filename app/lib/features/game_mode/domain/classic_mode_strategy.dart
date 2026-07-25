@@ -1,3 +1,4 @@
+import 'package:bb_block/core/constants/app_constants.dart';
 import 'package:bb_block/features/board/domain/entities/board.dart';
 import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
 import 'package:bb_block/features/game_mode/domain/round_outcome.dart';
@@ -16,9 +17,13 @@ final class ClassicModeStrategy implements GameModeStrategy {
   @override
   GameModeType get type => GameModeType.classic;
 
+  /// Framed and frameless Classic Mode are different-sized puzzles by
+  /// design (user instruction): the framed board is the smaller, tighter
+  /// 8x8, while frameless plays on the same 10x10 grid as Level Mode.
   @override
-  Board createInitialBoard() =>
-      hasFrame ? Board.framed() : Board.empty();
+  Board createInitialBoard() => hasFrame
+      ? Board.framed(size: BoardConstants.classicFramedGridSize)
+      : Board.empty();
 
   /// The classic frame is permanent — the GDD is explicit that it stays until
   /// the board fills up ("Silinmeyecektir").

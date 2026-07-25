@@ -1,10 +1,8 @@
 import 'dart:async';
 
-import 'package:bb_block/core/providers/audio_providers.dart';
-import 'package:bb_block/core/providers/haptics_providers.dart';
+import 'package:bb_block/core/constants/app_constants.dart';
+import 'package:bb_block/core/providers/game_feel_providers.dart';
 import 'package:bb_block/features/board/domain/entities/grid_position.dart';
-import 'package:bb_block/features/game/application/game_audio.dart';
-import 'package:bb_block/features/game/application/game_haptics.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
 import 'package:bb_block/features/game_engine/domain/game_engine.dart';
 import 'package:bb_block/features/game_engine/domain/game_event.dart';
@@ -14,7 +12,6 @@ import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
 import 'package:bb_block/features/game_mode/domain/level_mode_strategy.dart';
 import 'package:bb_block/features/game_mode/domain/round_outcome.dart';
 import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
-import 'package:bb_block/features/persistence/domain/player_progress.dart';
 import 'package:bb_block/features/piece_generation/domain/weighted_piece_generator.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -33,23 +30,20 @@ class GameController extends _$GameController {
   @override
   GameSession build(GameLaunchConfig config) {
     _config = config;
-    // Level Mode boosters are a persistent, account-level resource (see
-    // `PlayerProgress`) — every fresh engine (including a retry) starts from
-    // whatever the player currently owns, not a fixed per-attempt default.
-    // Classic Mode never has boosters, so it never touches this provider —
-    // callers (HomeScreen) are responsible for making sure PlayerProgress
-    // has actually finished loading before a Level Mode config reaches here.
-    final isLevel = config.mode == GameModeType.level;
-    final progress = isLevel
-        ? (ref.read(playerProgressControllerProvider).value ??
-            const PlayerProgress())
-        : null;
+    // Booster charges are attempt-scoped now, not a persistent resource
+    // (see `PlayerProgress`'s doc comment): unlocked means one charge of
+    // every booster for this round only, seeded straight from the choice
+    // made at `HomeScreen`'s start sheet — never read back from
+    // `PlayerProgress`, and never written back to it either.
+    final unlocked =
+        config.mode == GameModeType.level && config.levelBoostersUnlocked;
+    final charges = unlocked ? BoosterConstants.unlockedChargesPerRound : 0;
     _engine = GameEngine(
       mode: _strategyFor(config),
       generator: WeightedPieceGenerator(),
-      initialRotateCharges: progress?.rotateCharges ?? 0,
-      initialSwapCharges: progress?.swapCharges ?? 0,
-      initialSingleCellRemoveCharges: progress?.singleCellRemoveCharges ?? 0,
+      initialRotateCharges: charges,
+      initialSwapCharges: charges,
+      initialSingleCellRemoveCharges: charges,
     );
     return _engine.session;
   }
@@ -82,44 +76,10 @@ class GameController extends _$GameController {
       );
     }
 
-    if (events.any(_isBoosterUseEvent)) {
-      unawaited(
-        ref.read(playerProgressControllerProvider.notifier).syncBoosterCharges(
-              rotate: state.rotateCharges,
-              swap: state.swapCharges,
-              singleCellRemove: state.singleCellRemoveCharges,
-            ),
-      );
-    }
-
     if (events.any((event) => event is GameEventRoundEnded)) {
       _recordOutcome();
     }
-    _triggerHaptics(events);
-    _triggerAudio(events);
-    // Extension point: the animation system will consume `events` here
-    // once it lands.
-  }
-
-  bool _isBoosterUseEvent(GameEvent event) =>
-      event is GameEventTrayRotated ||
-      event is GameEventTraySwapped ||
-      event is GameEventCellRemoved;
-
-  void _triggerHaptics(List<GameEvent> events) {
-    final haptics = ref.read(hapticsServiceProvider);
-    for (final event in events) {
-      final intensity = hapticIntensityFor(event);
-      if (intensity != null) unawaited(haptics.trigger(intensity));
-    }
-  }
-
-  void _triggerAudio(List<GameEvent> events) {
-    final audio = ref.read(audioServiceProvider);
-    for (final event in events) {
-      final effect = soundEffectFor(event);
-      if (effect != null) unawaited(audio.playEffect(effect));
-    }
+    events.forEach(ref.read(feedbackOrchestratorProvider).play);
   }
 
   void _recordOutcome() {

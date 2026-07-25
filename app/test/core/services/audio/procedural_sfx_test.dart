@@ -5,24 +5,12 @@ import 'package:bb_block/core/services/audio/sound_effect.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  // Every SoundEffect that game_audio.dart's soundEffectFor can actually
-  // emit during play — if one of these has no procedural recipe, it
-  // silently falls back to a still-missing asset file and plays nothing.
-  const wiredEffects = {
-    SoundEffect.invalidMove,
-    SoundEffect.pieceSnap,
-    SoundEffect.lineComplete,
-    SoundEffect.multipleLineComplete,
-    SoundEffect.frameDestroy,
-    SoundEffect.pieceRotate,
-    SoundEffect.boosterActivate,
-    SoundEffect.woodCrack,
-    SoundEffect.levelComplete,
-    SoundEffect.gameOver,
-  };
-
-  test('every gameplay-wired SoundEffect has a procedural recipe', () {
-    for (final effect in wiredEffects) {
+  test('every SoundEffect has a procedural recipe', () {
+    // The Game Feel Engine (see feedback_orchestrator.dart) can emit any
+    // enum value as either a primary or a layered secondary sound — if one
+    // of these has no procedural recipe, it silently falls back to a still-
+    // missing asset file and plays nothing.
+    for (final effect in SoundEffect.values) {
       expect(
         proceduralSfxFor(effect),
         isNotNull,
@@ -56,10 +44,6 @@ void main() {
     expect(identical(first, second), isTrue);
   });
 
-  test('an effect with no recipe returns null', () {
-    expect(proceduralSfxFor(SoundEffect.woodMerge), isNull);
-  });
-
   test('proceduralSfxPathFor writes a real, non-empty WAV file to disk',
       () async {
     final path = await proceduralSfxPathFor(SoundEffect.woodCrack);
@@ -75,10 +59,5 @@ void main() {
     final first = await proceduralSfxPathFor(SoundEffect.invalidMove);
     final second = await proceduralSfxPathFor(SoundEffect.invalidMove);
     expect(first, second);
-  });
-
-  test('proceduralSfxPathFor returns null for an effect with no recipe',
-      () async {
-    expect(await proceduralSfxPathFor(SoundEffect.woodMerge), isNull);
   });
 }

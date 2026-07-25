@@ -40,8 +40,8 @@ void main() {
     const config = GameLaunchConfig(mode: GameModeType.classic);
 
     // Build the session (an empty board); every catalog shape fits at the
-    // origin of an empty 9x9 board, so this is deterministic regardless of
-    // which shape the real weighted generator drew.
+    // origin of an empty 10x10 board, so this is deterministic regardless
+    // of which shape the real weighted generator drew.
     container.read(gameControllerProvider(config));
     final controller =
         container.read(gameControllerProvider(config).notifier);
@@ -52,7 +52,12 @@ void main() {
     );
 
     expect(haptics.triggered, isNotEmpty);
-    expect(audio.playedEffects, [SoundEffect.pieceSnap]);
+    // pieceSnap is the primary SFX; pieceDrop is the Game Feel Engine's
+    // layered secondary sound underneath it (see game_feel_mapping.dart).
+    expect(
+      audio.playedEffects,
+      [SoundEffect.pieceSnap, SoundEffect.pieceDrop],
+    );
   });
 
   test(

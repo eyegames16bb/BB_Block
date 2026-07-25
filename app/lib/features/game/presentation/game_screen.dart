@@ -1,6 +1,10 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:bb_block/core/constants/app_constants.dart';
+import 'package:bb_block/core/game_feel/screen_shake.dart';
+import 'package:bb_block/core/game_feel/spring_pressable.dart';
+import 'package:bb_block/core/providers/game_feel_providers.dart';
 import 'package:bb_block/core/theme/app_theme.dart';
 import 'package:bb_block/core/theme/wood_background.dart';
 import 'package:bb_block/features/game/application/game_controller.dart';
@@ -9,7 +13,7 @@ import 'package:bb_block/features/game/presentation/widgets/board_grid.dart';
 import 'package:bb_block/features/game/presentation/widgets/booster_bar.dart';
 import 'package:bb_block/features/game/presentation/widgets/game_palette.dart';
 import 'package:bb_block/features/game/presentation/widgets/piece_tray.dart';
-import 'package:bb_block/features/game/presentation/widgets/pressable_scale.dart';
+import 'package:bb_block/features/game/presentation/widgets/wood_dust_effect.dart';
 import 'package:bb_block/features/game_engine/domain/game_session.dart';
 import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
 import 'package:bb_block/features/game_mode/domain/round_outcome.dart';
@@ -19,6 +23,7 @@ import 'package:bb_block/features/settings/presentation/settings_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:newton_particles/newton_particles.dart';
 import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
 
 class GameScreen extends ConsumerStatefulWidget {
@@ -62,8 +67,8 @@ class _GameScreenState extends ConsumerState<GameScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final wentToBackground = state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden;
+    final wentToBackground =
+        state == AppLifecycleState.paused || state == AppLifecycleState.hidden;
     if (!wentToBackground || !mounted) return;
 
     final session = ref.read(gameControllerProvider(widget.config));
@@ -110,116 +115,116 @@ class _GameScreenState extends ConsumerState<GameScreen>
         child: SafeArea(
           child: Stack(
             children: [
-              Padding(
-                padding: const EdgeInsets.all(10),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [GamePalette.bezelLight, GamePalette.bezelDark],
+              ScreenShake(
+                controller: ref.watch(screenShakeControllerProvider),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [GamePalette.bezelLight, GamePalette.bezelDark],
+                      ),
+                      border: Border.all(
+                        color: GamePalette.panelDark,
+                        width: 4,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.45),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                     ),
-                    border: Border.all(color: GamePalette.panelDark, width: 4),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.45),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      _Header(
-                        config: config,
-                        session: session,
-                        progress: progress,
-                        onPause: () => setState(() => _isPaused = true),
-                      ),
-                      const SizedBox(height: 12),
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            // Cap the board to the smaller of the available
-                            // width and a height budget that leaves room for
-                            // the controls row (when shown) and the tray
-                            // below it, so nothing overflows on any screen.
-                            final reservedHeight =
-                                _boostersVisible ? 118.0 : 0.0;
-                            final boardSide = math.min(
-                              constraints.maxWidth,
-                              (constraints.maxHeight - reservedHeight) * 0.74,
-                            );
-                            final cellSize = boardSide / session.board.size;
+                    child: Column(
+                      children: [
+                        _Header(
+                          config: config,
+                          session: session,
+                          progress: progress,
+                          onPause: () => setState(() => _isPaused = true),
+                        ),
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              // Cap the board to the smaller of the available
+                              // width and a height budget that leaves room for
+                              // the controls row (when shown) and the tray
+                              // below it, so nothing overflows on any screen.
+                              final reservedHeight = _boostersVisible
+                                  ? 118.0
+                                  : 0.0;
+                              final boardSide = math.min(
+                                constraints.maxWidth,
+                                (constraints.maxHeight - reservedHeight) * 0.74,
+                              );
+                              final cellSize = boardSide / session.board.size;
 
-                            // Board → controls row → piece dock, matching
-                            // the reference mockup's `.grid-container` →
-                            // `.controls` → `.piece-dock` order (this HUD
-                            // previously showed the tray above the booster
-                            // row instead).
-                            return Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                  width: boardSide,
-                                  height: boardSide,
-                                  child: BoardGrid(
-                                    board: session.board,
-                                    tray: session.tray,
-                                    removalArmed: _removalArmed,
-                                    onCellTap: (position) {
-                                      controller.removeCell(position);
-                                      setState(() => _removalArmed = false);
-                                    },
-                                    onPlace: (trayIndex, anchor) =>
-                                        controller.placePiece(
-                                      trayIndex: trayIndex,
-                                      anchor: anchor,
+                              // Board → controls row → piece dock, matching
+                              // the reference mockup's `.grid-container` →
+                              // `.controls` → `.piece-dock` order (this HUD
+                              // previously showed the tray above the booster
+                              // row instead).
+                              return Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: boardSide,
+                                    height: boardSide,
+                                    child: BoardGrid(
+                                      board: session.board,
+                                      tray: session.tray,
+                                      removalArmed: _removalArmed,
+                                      onCellTap: (position) {
+                                        controller.removeCell(position);
+                                        setState(() => _removalArmed = false);
+                                      },
+                                      onPlace: (trayIndex, anchor) =>
+                                          controller.placePiece(
+                                            trayIndex: trayIndex,
+                                            anchor: anchor,
+                                          ),
                                     ),
                                   ),
-                                ),
-                                if (_boostersVisible) ...[
-                                  const SizedBox(height: 12),
-                                  BoosterBar(
-                                    rotateCharges: session.rotateCharges,
-                                    swapCharges: session.swapCharges,
-                                    singleCellRemoveCharges:
-                                        session.singleCellRemoveCharges,
-                                    goldKeyCount: progress.goldKeyCount,
-                                    removalArmed: _removalArmed,
-                                    onRotateTap: controller.rotateTray,
-                                    onSwapTap: controller.swapTray,
-                                    onRemovalTap: () => setState(
-                                      () => _removalArmed = !_removalArmed,
+                                  if (_boostersVisible) ...[
+                                    const SizedBox(height: 12),
+                                    BoosterBar(
+                                      rotateCharges: session.rotateCharges,
+                                      swapCharges: session.swapCharges,
+                                      singleCellRemoveCharges:
+                                          session.singleCellRemoveCharges,
+                                      removalArmed: _removalArmed,
+                                      onRotateTap: controller.rotateTray,
+                                      onSwapTap: controller.swapTray,
+                                      onRemovalTap: () => setState(
+                                        () => _removalArmed = !_removalArmed,
+                                      ),
                                     ),
-                                    onRefill: (kind) => ref
-                                        .read(
-                                          playerProgressControllerProvider
-                                              .notifier,
-                                        )
-                                        .refillBooster(kind),
+                                  ],
+                                  const SizedBox(height: 12),
+                                  SizedBox(
+                                    width: boardSide,
+                                    height: cellSize * 2.2,
+                                    child: PieceTray(
+                                      tray: session.tray,
+                                      dragCellSize: cellSize,
+                                    ),
                                   ),
                                 ],
-                                const SizedBox(height: 12),
-                                SizedBox(
-                                  width: boardSide,
-                                  height: cellSize * 2.2,
-                                  child: PieceTray(
-                                    tray: session.tray,
-                                    dragCellSize: cellSize,
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      _Footer(goldKeyCount: progress.goldKeyCount),
-                    ],
+                        const SizedBox(height: 12),
+                        _Footer(goldKeyCount: progress.goldKeyCount),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -290,9 +295,7 @@ class _Header extends StatelessWidget {
                     const SizedBox(width: 12),
                     Text(
                       '${session.score}',
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
+                      style: Theme.of(context).textTheme.headlineMedium
                           ?.copyWith(
                             color: AppColors.paper,
                             shadows: const [
@@ -391,12 +394,12 @@ class _Footer extends StatelessWidget {
             Text(
               'PUZZLE',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.paper,
-                    letterSpacing: 1,
-                    shadows: const [
-                      Shadow(color: Colors.black54, blurRadius: 4),
-                    ],
-                  ),
+                color: AppColors.paper,
+                letterSpacing: 1,
+                shadows: const [
+                  Shadow(color: Colors.black54, blurRadius: 4),
+                ],
+              ),
             ),
           ],
         ),
@@ -478,7 +481,7 @@ class _GoldKeyFooterBadge extends StatelessWidget {
 
 /// A rounded-square wood button with a solid drop "ledge" beneath it —
 /// `.icon-btn`'s gradient/border/box-shadow from the reference mockup,
-/// replacing the earlier flat navy circle. [PressableScale] adds the
+/// replacing the earlier flat navy circle. [SpringPressable] adds the
 /// press-down feedback the reference's chunky 3D chrome implies.
 class _RoundIconButton extends StatelessWidget {
   const _RoundIconButton({required this.icon, required this.onTap});
@@ -488,7 +491,7 @@ class _RoundIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PressableScale(
+    return SpringPressable(
       onTap: onTap,
       child: Container(
         width: 42,
@@ -531,10 +534,9 @@ class _PauseOverlay extends StatelessWidget {
               children: [
                 Text(
                   'Duraklatıldı',
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineSmall
-                      ?.copyWith(color: AppColors.paper),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.headlineSmall?.copyWith(color: AppColors.paper),
                 ),
                 const SizedBox(height: 20),
                 FilledButton(
@@ -605,8 +607,7 @@ class _LevelProgress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const target = LevelModeConstants.targetScore;
-    const thresholdFraction =
-        LevelModeConstants.frameRemovalThreshold / target;
+    const thresholdFraction = LevelModeConstants.frameRemovalThreshold / target;
     final fraction = (score / target).clamp(0, 1).toDouble();
 
     return Column(
@@ -615,11 +616,11 @@ class _LevelProgress extends StatelessWidget {
         Text(
           '$score / $target',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: AppColors.paper,
-                shadows: const [
-                  Shadow(color: Colors.black54, blurRadius: 6),
-                ],
-              ),
+            color: AppColors.paper,
+            shadows: const [
+              Shadow(color: Colors.black54, blurRadius: 6),
+            ],
+          ),
         ),
         const SizedBox(height: 6),
         SizedBox(
@@ -672,76 +673,183 @@ class _LevelProgress extends StatelessWidget {
   }
 }
 
-class _RoundOverlay extends ConsumerWidget {
+class _RoundOverlay extends ConsumerStatefulWidget {
   const _RoundOverlay({required this.config, required this.session});
 
   final GameLaunchConfig config;
   final GameSession session;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return ColoredBox(
-      color: Colors.black.withValues(alpha: 0.6),
-      child: Center(
-        child: Card(
-          color: AppColors.navy,
-          margin: const EdgeInsets.all(32),
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _title(session.outcome),
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineSmall
-                      ?.copyWith(color: AppColors.paper),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Skor: ${session.score}',
-                  style: const TextStyle(color: AppColors.paper, fontSize: 18),
-                ),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: () =>
-                      ref.invalidate(gameControllerProvider(config)),
-                  child: Text(_buttonLabel(session.outcome)),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () => context.pop(),
-                  child: const Text(
-                    'Ana Menü',
-                    style: TextStyle(color: AppColors.paper),
+  ConsumerState<_RoundOverlay> createState() => _RoundOverlayState();
+}
+
+class _RoundOverlayState extends ConsumerState<_RoundOverlay> {
+  final _newtonKey = GlobalKey<NewtonState>();
+  bool get _isVictory => widget.session.outcome is RoundOutcomeLevelComplete;
+
+  @override
+  void initState() {
+    super.initState();
+    // Level Complete's confetti — a golden flourish the game-over/level-
+    // failed cases deliberately don't get, per the GDD's "Golden Glow /
+    // Konfeti" spec for this specific moment. Staggered bursts read fuller
+    // than a single one-shot puff.
+    if (_isVictory) {
+      for (final delayMs in [0, 140, 260]) {
+        Future.delayed(Duration(milliseconds: delayMs), () {
+          if (!mounted) return;
+          _newtonKey.currentState?.addEffect(
+            confettiBurst(
+              origin: Offset(0.2 + delayMs / 1000, 0),
+            ),
+          );
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = widget.session;
+    final config = widget.config;
+    return Newton(
+      key: _newtonKey,
+      child: ColoredBox(
+        color: Colors.black.withValues(alpha: 0.6),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            if (_isVictory) const _VictoryFlash(),
+            Center(
+              child: Card(
+                color: AppColors.navy,
+                margin: const EdgeInsets.all(32),
+                shape: _isVictory
+                    ? RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(
+                          color: GamePalette.recordGold,
+                          width: 2,
+                        ),
+                      )
+                    : null,
+                child: Padding(
+                  padding: const EdgeInsets.all(28),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _title(session.outcome),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              color: _isVictory
+                                  ? GamePalette.recordGold
+                                  : AppColors.paper,
+                            ),
+                      ),
+                      const SizedBox(height: 12),
+                      TweenAnimationBuilder<int>(
+                        tween: IntTween(begin: 0, end: session.score),
+                        duration: const Duration(milliseconds: 600),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, value, _) => Text(
+                          'Skor: $value',
+                          style: const TextStyle(
+                            color: AppColors.paper,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      FilledButton(
+                        onPressed: () =>
+                            ref.invalidate(gameControllerProvider(config)),
+                        child: Text(_buttonLabel(session.outcome)),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () => context.pop(),
+                        child: const Text(
+                          'Ana Menü',
+                          style: TextStyle(color: AppColors.paper),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
   String _title(RoundOutcome outcome) => switch (outcome) {
-        RoundOutcomeLevelComplete() => 'Bölüm Tamamlandı!',
-        RoundOutcomeLevelFailed() => 'Bölüm Başarısız',
-        RoundOutcomeClassicGameOver() => 'Oyun Bitti',
-        RoundOutcomeOngoing() => '',
-      };
+    RoundOutcomeLevelComplete() => 'Bölüm Tamamlandı!',
+    RoundOutcomeLevelFailed() => 'Bölüm Başarısız',
+    RoundOutcomeClassicGameOver() => 'Oyun Bitti',
+    RoundOutcomeOngoing() => '',
+  };
 
   // A completed level moves forward to the next one (mechanically just a
   // fresh session under decision #5 — every level plays the same), not a
   // repeat of the one just finished, so it gets its own label instead of
   // reusing "Tekrar Oyna" ("Play Again").
   String _buttonLabel(RoundOutcome outcome) => switch (outcome) {
-        RoundOutcomeLevelComplete() => 'Sonraki Bölüm',
-        RoundOutcomeLevelFailed() ||
-        RoundOutcomeClassicGameOver() ||
-        RoundOutcomeOngoing() =>
-          'Tekrar Oyna',
-      };
+    RoundOutcomeLevelComplete() => 'Sonraki Bölüm',
+    RoundOutcomeLevelFailed() ||
+    RoundOutcomeClassicGameOver() ||
+    RoundOutcomeOngoing() => 'Tekrar Oyna',
+  };
+}
+
+/// A brief golden screen flash for Level Complete — fades in fast and out
+/// slow, like a camera flash rather than a slow cross-fade, per the GDD's
+/// "Screen Flash" spec point.
+class _VictoryFlash extends StatefulWidget {
+  const _VictoryFlash();
+
+  @override
+  State<_VictoryFlash> createState() => _VictoryFlashState();
+}
+
+class _VictoryFlashState extends State<_VictoryFlash>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    unawaited(_controller.forward());
+    _opacity = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0, end: 0.55), weight: 15),
+      TweenSequenceItem(tween: Tween(begin: 0.55, end: 0), weight: 85),
+    ]).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _opacity,
+        builder: (context, child) => Opacity(
+          opacity: _opacity.value,
+          child: Container(color: GamePalette.recordGold),
+        ),
+      ),
+    );
+  }
 }

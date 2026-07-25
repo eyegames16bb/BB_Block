@@ -74,19 +74,12 @@ void main() {
   });
 
   testWidgets(
-      'BoosterBar is shown for Level Mode using the persisted charges',
+      'BoosterBar shows zero charges for Level Mode started without a key',
       (tester) async {
     await tester.pumpWidget(
       wrap(
-        const GameLaunchConfig(mode: GameModeType.level),
-        // No Gold Keys here — otherwise the depleted swap booster would
-        // show a refill badge instead of the literal "0" this test checks
-        // for (that behavior has its own test just below).
-        progress: const PlayerProgress(
-          rotateCharges: 3,
-          swapCharges: 0,
-          singleCellRemoveCharges: 5,
-          goldKeyCount: 0,
+        const GameLaunchConfig(
+          mode: GameModeType.level,
         ),
       ),
     );
@@ -94,34 +87,34 @@ void main() {
     await tester.pump();
 
     expect(find.byType(BoosterBar), findsOneWidget);
-    // Scoped to BoosterBar: the header's Gold Key chip also renders "0"
-    // here (goldKeyCount is 0 too), which would otherwise collide with the
-    // depleted swap booster's own literal "0".
     final boosterBar = find.byType(BoosterBar);
-    expect(find.descendant(of: boosterBar, matching: find.text('3')),
-        findsOneWidget);
-    expect(find.descendant(of: boosterBar, matching: find.text('0')),
-        findsOneWidget);
-    expect(find.descendant(of: boosterBar, matching: find.text('5')),
-        findsOneWidget);
+    // All three boosters start at zero unless a Gold Key was spent at the
+    // start-of-round sheet (see GameLaunchConfig.levelBoostersUnlocked).
+    expect(
+      find.descendant(of: boosterBar, matching: find.text('0')),
+      findsNWidgets(3),
+    );
   });
 
   testWidgets(
-      'a depleted booster with a Gold Key available shows a refill badge '
-      'instead of the zero charge count', (tester) async {
+      'BoosterBar shows one charge of every booster when unlocked with a '
+      'Gold Key', (tester) async {
     await tester.pumpWidget(
       wrap(
-        const GameLaunchConfig(mode: GameModeType.level),
-        progress: const PlayerProgress(rotateCharges: 0, goldKeyCount: 1),
+        const GameLaunchConfig(
+          mode: GameModeType.level,
+          levelBoostersUnlocked: true,
+        ),
       ),
     );
     await tester.pump();
     await tester.pump();
 
-    // Rotate is depleted but refillable (a key is owned): no literal "0"
-    // for it — the badge swaps to a key icon instead, per BoosterBar's
-    // refillable-state rendering.
-    expect(find.text('0'), findsNothing);
+    final boosterBar = find.byType(BoosterBar);
+    expect(
+      find.descendant(of: boosterBar, matching: find.text('1')),
+      findsNWidgets(3),
+    );
   });
 
   testWidgets('the pause button shows an overlay, and Devam Et dismisses it',

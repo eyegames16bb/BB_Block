@@ -4,7 +4,6 @@ import 'package:bb_block/core/constants/app_constants.dart';
 import 'package:bb_block/core/providers/audio_providers.dart';
 import 'package:bb_block/core/providers/haptics_providers.dart';
 import 'package:bb_block/core/providers/persistence_providers.dart';
-import 'package:bb_block/features/booster/domain/booster_kind.dart';
 import 'package:bb_block/features/persistence/domain/player_progress.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -108,46 +107,18 @@ class PlayerProgressController extends _$PlayerProgressController {
         );
       });
 
-  /// Writes back the booster charges a `GameEngine` is holding for the
-  /// current round, right after a booster is actually used — not just at
-  /// round end — so a charge spent mid-round survives the player quitting
-  /// before the round naturally finishes.
-  Future<void> syncBoosterCharges({
-    required int rotate,
-    required int swap,
-    required int singleCellRemove,
-  }) =>
-      _serialized(() async {
-        final current = state.value ?? const PlayerProgress();
-        await _persist(
-          current.copyWith(
-            rotateCharges: rotate,
-            swapCharges: swap,
-            singleCellRemoveCharges: singleCellRemove,
-          ),
-        );
-      });
-
-  /// Spends one Gold Key to add one charge of the chosen [kind]. Returns
-  /// whether it succeeded — the caller must not treat the booster as
-  /// refilled on `false`. Serialized like every other mutator here so two
+  /// Spends one Gold Key to unlock boosters for the Level Mode round about
+  /// to start (one charge of each — see `GameLaunchConfig.
+  /// levelBoostersUnlocked` and `PlayerProgress`'s doc comment). Returns
+  /// whether it succeeded; the caller must not start the round as
+  /// "unlocked" on `false`. Serialized like every other mutator here so two
   /// rapid taps can't both read the same pre-spend `goldKeyCount` and both
   /// succeed off a single key.
-  Future<bool> refillBooster(BoosterKind kind) => _serialized(() async {
+  Future<bool> spendGoldKeyForBoosters() => _serialized(() async {
         final current = state.value ?? const PlayerProgress();
         if (current.goldKeyCount <= 0) return false;
-
-        final refilled = switch (kind) {
-          BoosterKind.rotate =>
-            current.copyWith(rotateCharges: current.rotateCharges + 1),
-          BoosterKind.swap =>
-            current.copyWith(swapCharges: current.swapCharges + 1),
-          BoosterKind.singleCellRemove => current.copyWith(
-              singleCellRemoveCharges: current.singleCellRemoveCharges + 1,
-            ),
-        };
         await _persist(
-          refilled.copyWith(goldKeyCount: current.goldKeyCount - 1),
+          current.copyWith(goldKeyCount: current.goldKeyCount - 1),
         );
         return true;
       });

@@ -4,12 +4,13 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'player_progress.freezed.dart';
 part 'player_progress.g.dart';
 
-/// Account-level progress. Booster charges live here (not in `GameSession`)
-/// because they're a persistent resource, not an attempt-scoped one: a new
-/// player starts with one of each, unused charges carry across levels and
-/// app restarts, and the only way to gain more is spending a Gold Key on the
-/// specific type you want (see `PlayerProgressController.refillBooster`).
-/// Classic Mode never touches these fields — it has no boosters at all.
+/// Account-level progress. Booster charges are deliberately *not* stored
+/// here — they're an attempt-scoped resource now, not a persistent one: at
+/// the start of each Level Mode round the player either spends one Gold Key
+/// for one charge of every booster that round only, or plays with none
+/// (see `HomeScreen`'s start sheet and `GameLaunchConfig.
+/// levelBoostersUnlocked`). Unused charges are lost at round end and
+/// nothing mid-round can add more. Classic Mode never has boosters at all.
 @freezed
 abstract class PlayerProgress with _$PlayerProgress {
   const factory PlayerProgress({
@@ -19,10 +20,6 @@ abstract class PlayerProgress with _$PlayerProgress {
     @Default(GoldKeyConstants.startingGoldKeyCount) int goldKeyCount,
     @Default(true) bool soundEnabled,
     @Default(true) bool hapticsEnabled,
-    @Default(BoosterConstants.defaultRotateCharges) int rotateCharges,
-    @Default(BoosterConstants.defaultSwapCharges) int swapCharges,
-    @Default(BoosterConstants.defaultSingleCellRemoveCharges)
-    int singleCellRemoveCharges,
   }) = _PlayerProgress;
 
   factory PlayerProgress.fromJson(Map<String, dynamic> json) =>
