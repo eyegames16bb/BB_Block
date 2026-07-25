@@ -169,6 +169,31 @@ void main() {
     expect(progress.goldKeyCount, 0);
   });
 
+  test(
+      'two concurrent refillBooster calls do not lose either mutation '
+      '(regression for a same-stale-state double-tap race)', () async {
+    final container = containerWith(
+      FakeGameSaveRepository(const PlayerProgress(goldKeyCount: 2)),
+    );
+    await container.read(playerProgressControllerProvider.future);
+    final controller =
+        container.read(playerProgressControllerProvider.notifier);
+
+    // Deliberately not awaited individually — this is exactly what a fast
+    // double-tap on two different booster buttons produces: both calls
+    // start before either write has landed.
+    final first = controller.refillBooster(BoosterKind.rotate);
+    final second = controller.refillBooster(BoosterKind.swap);
+
+    expect(await Future.wait([first, second]), [isTrue, isTrue]);
+
+    final progress = container.read(playerProgressControllerProvider).value!;
+    const base = PlayerProgress();
+    expect(progress.rotateCharges, base.rotateCharges + 1);
+    expect(progress.swapCharges, base.swapCharges + 1);
+    expect(progress.goldKeyCount, 0);
+  });
+
   test('refillBooster fails and leaves charges untouched with zero keys',
       () async {
     final container = containerWith(FakeGameSaveRepository());
