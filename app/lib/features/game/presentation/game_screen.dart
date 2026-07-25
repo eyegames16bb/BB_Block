@@ -562,7 +562,7 @@ class _RoundOverlay extends ConsumerWidget {
                 FilledButton(
                   onPressed: () =>
                       ref.invalidate(gameControllerProvider(config)),
-                  child: const Text('Tekrar Oyna'),
+                  child: Text(_buttonLabel(session.outcome)),
                 ),
                 const SizedBox(height: 8),
                 TextButton(
@@ -585,5 +585,17 @@ class _RoundOverlay extends ConsumerWidget {
         RoundOutcomeLevelFailed() => 'Bölüm Başarısız',
         RoundOutcomeClassicGameOver() => 'Oyun Bitti',
         RoundOutcomeOngoing() => '',
+      };
+
+  // A completed level moves forward to the next one (mechanically just a
+  // fresh session under decision #5 — every level plays the same), not a
+  // repeat of the one just finished, so it gets its own label instead of
+  // reusing "Tekrar Oyna" ("Play Again").
+  String _buttonLabel(RoundOutcome outcome) => switch (outcome) {
+        RoundOutcomeLevelComplete() => 'Sonraki Bölüm',
+        RoundOutcomeLevelFailed() ||
+        RoundOutcomeClassicGameOver() ||
+        RoundOutcomeOngoing() =>
+          'Tekrar Oyna',
       };
 }
