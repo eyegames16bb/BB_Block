@@ -111,90 +111,116 @@ class _GameScreenState extends ConsumerState<GameScreen>
           child: Stack(
             children: [
               Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    _Header(
-                      config: config,
-                      session: session,
-                      progress: progress,
-                      onPause: () => setState(() => _isPaused = true),
+                padding: const EdgeInsets.all(10),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [GamePalette.bezelLight, GamePalette.bezelDark],
                     ),
-                    Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          // Cap the board to the smaller of the available
-                          // width and a height budget that leaves room for
-                          // the tray (and the booster bar, when shown)
-                          // below it, so nothing overflows on any screen.
-                          // The booster row is a round token (60) + label
-                          // beneath it now, taller than the old flat panel.
-                          final reservedHeight =
-                              _boostersVisible ? 118.0 : 0.0;
-                          final boardSide = math.min(
-                            constraints.maxWidth,
-                            (constraints.maxHeight - reservedHeight) * 0.74,
-                          );
-                          final cellSize = boardSide / session.board.size;
+                    border: Border.all(color: GamePalette.panelDark, width: 4),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      _Header(
+                        config: config,
+                        session: session,
+                        progress: progress,
+                        onPause: () => setState(() => _isPaused = true),
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            // Cap the board to the smaller of the available
+                            // width and a height budget that leaves room for
+                            // the controls row (when shown) and the tray
+                            // below it, so nothing overflows on any screen.
+                            final reservedHeight =
+                                _boostersVisible ? 118.0 : 0.0;
+                            final boardSide = math.min(
+                              constraints.maxWidth,
+                              (constraints.maxHeight - reservedHeight) * 0.74,
+                            );
+                            final cellSize = boardSide / session.board.size;
 
-                          return Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: boardSide,
-                                height: boardSide,
-                                child: BoardGrid(
-                                  board: session.board,
-                                  tray: session.tray,
-                                  removalArmed: _removalArmed,
-                                  onCellTap: (position) {
-                                    controller.removeCell(position);
-                                    setState(() => _removalArmed = false);
-                                  },
-                                  onPlace: (trayIndex, anchor) =>
-                                      controller.placePiece(
-                                    trayIndex: trayIndex,
-                                    anchor: anchor,
+                            // Board → controls row → piece dock, matching
+                            // the reference mockup's `.grid-container` →
+                            // `.controls` → `.piece-dock` order (this HUD
+                            // previously showed the tray above the booster
+                            // row instead).
+                            return Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: boardSide,
+                                  height: boardSide,
+                                  child: BoardGrid(
+                                    board: session.board,
+                                    tray: session.tray,
+                                    removalArmed: _removalArmed,
+                                    onCellTap: (position) {
+                                      controller.removeCell(position);
+                                      setState(() => _removalArmed = false);
+                                    },
+                                    onPlace: (trayIndex, anchor) =>
+                                        controller.placePiece(
+                                      trayIndex: trayIndex,
+                                      anchor: anchor,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 20),
-                              SizedBox(
-                                width: boardSide,
-                                height: cellSize * 2.2,
-                                child: PieceTray(
-                                  tray: session.tray,
-                                  dragCellSize: cellSize,
-                                ),
-                              ),
-                              if (_boostersVisible) ...[
-                                const SizedBox(height: 16),
-                                BoosterBar(
-                                  rotateCharges: session.rotateCharges,
-                                  swapCharges: session.swapCharges,
-                                  singleCellRemoveCharges:
-                                      session.singleCellRemoveCharges,
-                                  goldKeyCount: progress.goldKeyCount,
-                                  removalArmed: _removalArmed,
-                                  onRotateTap: controller.rotateTray,
-                                  onSwapTap: controller.swapTray,
-                                  onRemovalTap: () => setState(
-                                    () => _removalArmed = !_removalArmed,
+                                if (_boostersVisible) ...[
+                                  const SizedBox(height: 12),
+                                  BoosterBar(
+                                    rotateCharges: session.rotateCharges,
+                                    swapCharges: session.swapCharges,
+                                    singleCellRemoveCharges:
+                                        session.singleCellRemoveCharges,
+                                    goldKeyCount: progress.goldKeyCount,
+                                    removalArmed: _removalArmed,
+                                    onRotateTap: controller.rotateTray,
+                                    onSwapTap: controller.swapTray,
+                                    onRemovalTap: () => setState(
+                                      () => _removalArmed = !_removalArmed,
+                                    ),
+                                    onRefill: (kind) => ref
+                                        .read(
+                                          playerProgressControllerProvider
+                                              .notifier,
+                                        )
+                                        .refillBooster(kind),
                                   ),
-                                  onRefill: (kind) => ref
-                                      .read(
-                                        playerProgressControllerProvider
-                                            .notifier,
-                                      )
-                                      .refillBooster(kind),
+                                ],
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: boardSide,
+                                  height: cellSize * 2.2,
+                                  child: PieceTray(
+                                    tray: session.tray,
+                                    dragCellSize: cellSize,
+                                  ),
                                 ),
                               ],
-                            ],
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      _Footer(goldKeyCount: progress.goldKeyCount),
+                    ],
+                  ),
                 ),
               ),
               if (_scorePopupGeneration > 0)
@@ -277,10 +303,6 @@ class _Header extends StatelessWidget {
                   ],
                 ),
         ),
-        if (isLevel) ...[
-          const SizedBox(width: 8),
-          _GoldKeyChip(count: progress.goldKeyCount),
-        ],
         const SizedBox(width: 8),
         _RoundIconButton(icon: PhosphorIcons.pause, onTap: onPause),
         const SizedBox(width: 8),
@@ -338,46 +360,117 @@ class _RecordBadge extends StatelessWidget {
   }
 }
 
-/// A compact Gold Key count chip in the Level Mode header — mirrors the
-/// reference mockup's chest icon next to the progress bar, but shows our
-/// actual spendable currency (the mockup's chest has no real counterpart in
-/// this game) rather than a decorative reward icon.
-class _GoldKeyChip extends StatelessWidget {
-  const _GoldKeyChip({required this.count});
+/// `.footer` from the reference mockup — the game title on the left,
+/// mirrored by [_GoldKeyFooterBadge] on the right in the `.shop-btn` spot.
+/// This game has no coin/shop economy, so the badge shows the real Gold Key
+/// balance instead of fabricating a currency display that leads nowhere.
+class _Footer extends StatelessWidget {
+  const _Footer({required this.goldKeyCount});
+
+  final int goldKeyCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'BB Block',
+              style: TextStyle(
+                color: AppColors.paper.withValues(alpha: 0.85),
+                fontSize: 14,
+                shadows: const [
+                  Shadow(color: Colors.black54, blurRadius: 4),
+                ],
+              ),
+            ),
+            Text(
+              'PUZZLE',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: AppColors.paper,
+                    letterSpacing: 1,
+                    shadows: const [
+                      Shadow(color: Colors.black54, blurRadius: 4),
+                    ],
+                  ),
+            ),
+          ],
+        ),
+        _GoldKeyFooterBadge(count: goldKeyCount),
+      ],
+    );
+  }
+}
+
+class _GoldKeyFooterBadge extends StatelessWidget {
+  const _GoldKeyFooterBadge({required this.count});
 
   final int count;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: GamePalette.panelDark,
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [GamePalette.woodButtonLight, GamePalette.woodButtonDark],
+        ),
+        border: Border.all(color: GamePalette.woodButtonBorder, width: 2),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: GamePalette.panelDarkBorder, width: 2),
         boxShadow: const [
-          BoxShadow(color: Colors.black45, blurRadius: 6, offset: Offset(0, 2)),
+          BoxShadow(color: GamePalette.buttonLedge, offset: Offset(0, 3)),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              PhosphorIcons.keyFill,
-              color: GamePalette.recordGold,
-              size: 18,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: GamePalette.panelDark,
+              borderRadius: BorderRadius.circular(10),
             ),
-            const SizedBox(width: 6),
-            Text(
-              '$count',
-              style: const TextStyle(
-                color: AppColors.paper,
-                fontWeight: FontWeight.bold,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 3,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    PhosphorIcons.keyFill,
+                    color: GamePalette.recordGold,
+                    size: 14,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$count',
+                    style: const TextStyle(
+                      color: AppColors.paper,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'Anahtar',
+            style: TextStyle(
+              color: AppColors.paper,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }

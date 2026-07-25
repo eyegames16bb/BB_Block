@@ -10,6 +10,11 @@ abstract final class GamePalette {
   /// `.grid-container` background — the dark recessed well the cells sit in.
   static const Color boardBackground = Color(0xFF3A1E0B);
 
+  /// `.grid-container`'s own border — darker than [boardBackground] itself,
+  /// since the grid now sits directly on the game-container's gradient (see
+  /// [bezelLight]/[bezelDark]) rather than inside its own separate bezel.
+  static const Color gridBorder = Color(0xFF241105);
+
   /// `.cell` background — visibly lighter than [boardBackground] so empty
   /// cells read as individual recessed slots, not a flat dark field.
   static const Color emptySlot = Color(0xFF4A2810);
