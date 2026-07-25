@@ -31,6 +31,20 @@ class WoodTile extends StatelessWidget {
             right: BorderSide(color: edge, width: size * 0.1),
           ),
         ),
+        // A soft top-left highlight so the tile reads as a raised chip
+        // rather than a flat painted square, matching the beveled piece art
+        // in the reference mockup.
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(size * 0.16),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [GamePalette.tileHighlight, Colors.transparent],
+              stops: [0, 0.6],
+            ),
+          ),
+        ),
       ),
     );
   }

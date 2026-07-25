@@ -16,7 +16,7 @@ abstract class PlayerProgress with _$PlayerProgress {
     @Default(0) int classicHighScoreFramed,
     @Default(0) int classicHighScoreFrameless,
     @Default(1) int currentLevel,
-    @Default(0) int goldKeyCount,
+    @Default(GoldKeyConstants.startingGoldKeyCount) int goldKeyCount,
     @Default(true) bool soundEnabled,
     @Default(true) bool hapticsEnabled,
     @Default(BoosterConstants.defaultRotateCharges) int rotateCharges,

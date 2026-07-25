@@ -9,6 +9,7 @@ import 'package:bb_block/features/game/presentation/widgets/board_grid.dart';
 import 'package:bb_block/features/game/presentation/widgets/booster_bar.dart';
 import 'package:bb_block/features/game/presentation/widgets/game_palette.dart';
 import 'package:bb_block/features/game/presentation/widgets/piece_tray.dart';
+import 'package:bb_block/features/game/presentation/widgets/pressable_scale.dart';
 import 'package:bb_block/features/game_engine/domain/game_session.dart';
 import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
 import 'package:bb_block/features/game_mode/domain/round_outcome.dart';
@@ -276,6 +277,10 @@ class _Header extends StatelessWidget {
                   ],
                 ),
         ),
+        if (isLevel) ...[
+          const SizedBox(width: 8),
+          _GoldKeyChip(count: progress.goldKeyCount),
+        ],
         const SizedBox(width: 8),
         _RoundIconButton(icon: PhosphorIcons.pause, onTap: onPause),
         const SizedBox(width: 8),
@@ -288,9 +293,10 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// The crown-badged high-score chip from the reference mockups — only
-/// meaningful in Classic Mode, where there's a persistent best to compare
-/// against (Level Mode already shows progress toward the 1000-point goal).
+/// The crown-badged high-score chip from the reference mockup's `.score`
+/// pill — only meaningful in Classic Mode, where there's a persistent best
+/// to compare against (Level Mode already shows progress toward the
+/// 1000-point goal).
 class _RecordBadge extends StatelessWidget {
   const _RecordBadge({required this.highScore});
 
@@ -300,8 +306,9 @@ class _RecordBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.navy,
-        borderRadius: BorderRadius.circular(10),
+        color: GamePalette.panelDark,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: GamePalette.panelDarkBorder, width: 2),
         boxShadow: const [
           BoxShadow(color: Colors.black45, blurRadius: 6, offset: Offset(0, 2)),
         ],
@@ -320,7 +327,7 @@ class _RecordBadge extends StatelessWidget {
             Text(
               '$highScore',
               style: const TextStyle(
-                color: GamePalette.recordGold,
+                color: AppColors.paper,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -331,6 +338,55 @@ class _RecordBadge extends StatelessWidget {
   }
 }
 
+/// A compact Gold Key count chip in the Level Mode header — mirrors the
+/// reference mockup's chest icon next to the progress bar, but shows our
+/// actual spendable currency (the mockup's chest has no real counterpart in
+/// this game) rather than a decorative reward icon.
+class _GoldKeyChip extends StatelessWidget {
+  const _GoldKeyChip({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: GamePalette.panelDark,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: GamePalette.panelDarkBorder, width: 2),
+        boxShadow: const [
+          BoxShadow(color: Colors.black45, blurRadius: 6, offset: Offset(0, 2)),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              PhosphorIcons.keyFill,
+              color: GamePalette.recordGold,
+              size: 18,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '$count',
+              style: const TextStyle(
+                color: AppColors.paper,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A rounded-square wood button with a solid drop "ledge" beneath it —
+/// `.icon-btn`'s gradient/border/box-shadow from the reference mockup,
+/// replacing the earlier flat navy circle. [PressableScale] adds the
+/// press-down feedback the reference's chunky 3D chrome implies.
 class _RoundIconButton extends StatelessWidget {
   const _RoundIconButton({required this.icon, required this.onTap});
 
@@ -339,18 +395,24 @@ class _RoundIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.navy,
-      shape: const CircleBorder(),
-      elevation: 3,
-      shadowColor: Colors.black54,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Icon(icon, color: AppColors.paper, size: 20),
+    return PressableScale(
+      onTap: onTap,
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [GamePalette.woodButtonLight, GamePalette.woodButtonDark],
+          ),
+          border: Border.all(color: GamePalette.woodButtonBorder, width: 2),
+          borderRadius: BorderRadius.circular(11),
+          boxShadow: const [
+            BoxShadow(color: GamePalette.buttonLedge, offset: Offset(0, 4)),
+          ],
         ),
+        child: Icon(icon, color: AppColors.ink, size: 20),
       ),
     );
   }
@@ -438,8 +500,10 @@ class _ScorePopup extends StatelessWidget {
   }
 }
 
-/// A thin line + threshold tick, matching the reference mockups, instead of
-/// a stock Material [LinearProgressIndicator].
+/// A chunky rounded gradient bar over a dark track — `.progress-bar`/
+/// `.progress-fill` from the reference mockup — plus a threshold tick at
+/// the 900-point frame-removal mark, which has no equivalent in the
+/// reference but is real game information worth keeping visible.
 class _LevelProgress extends StatelessWidget {
   const _LevelProgress({required this.score});
 
@@ -464,36 +528,41 @@ class _LevelProgress extends StatelessWidget {
                 ],
               ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         SizedBox(
           key: const Key('level-progress-bar'),
-          height: 10,
+          height: 12,
           child: LayoutBuilder(
             builder: (context, constraints) {
               return Stack(
                 clipBehavior: Clip.none,
                 children: [
                   Container(
-                    height: 3,
-                    margin: const EdgeInsets.symmetric(vertical: 3.5),
+                    height: 12,
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(2),
+                      color: GamePalette.progressTrack,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: GamePalette.panelDarkBorder),
                     ),
                   ),
                   FractionallySizedBox(
                     widthFactor: fraction,
                     child: Container(
-                      height: 3,
-                      margin: const EdgeInsets.symmetric(vertical: 3.5),
+                      height: 12,
                       decoration: BoxDecoration(
-                        color: GamePalette.recordGold,
-                        borderRadius: BorderRadius.circular(2),
+                        gradient: const LinearGradient(
+                          colors: [
+                            GamePalette.progressFillDark,
+                            GamePalette.progressFillLight,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                     ),
                   ),
                   Positioned(
                     left: constraints.maxWidth * thresholdFraction - 1,
+                    top: 1,
                     child: Container(
                       width: 2,
                       height: 10,

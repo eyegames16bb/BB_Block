@@ -87,7 +87,7 @@ void main() {
 
     expect(
       container.read(playerProgressControllerProvider).value!.goldKeyCount,
-      0,
+      GoldKeyConstants.startingGoldKeyCount,
     );
   });
 
@@ -105,7 +105,7 @@ void main() {
 
     final progress = container.read(playerProgressControllerProvider).value!;
     expect(progress.currentLevel, 1 + GoldKeyConstants.levelsPerGoldKeyReward);
-    expect(progress.goldKeyCount, 1);
+    expect(progress.goldKeyCount, GoldKeyConstants.startingGoldKeyCount + 1);
 
     // A second full cycle grants a second key.
     for (var i = 0; i < GoldKeyConstants.levelsPerGoldKeyReward; i++) {
@@ -113,7 +113,7 @@ void main() {
     }
     expect(
       container.read(playerProgressControllerProvider).value!.goldKeyCount,
-      2,
+      GoldKeyConstants.startingGoldKeyCount + 2,
     );
   });
 
@@ -128,7 +128,7 @@ void main() {
 
     expect(
       container.read(playerProgressControllerProvider).value!.goldKeyCount,
-      2,
+      GoldKeyConstants.startingGoldKeyCount + 2,
     );
   });
 
@@ -196,7 +196,9 @@ void main() {
 
   test('refillBooster fails and leaves charges untouched with zero keys',
       () async {
-    final container = containerWith(FakeGameSaveRepository());
+    final container = containerWith(
+      FakeGameSaveRepository(const PlayerProgress(goldKeyCount: 0)),
+    );
     await container.read(playerProgressControllerProvider.future);
     final controller =
         container.read(playerProgressControllerProvider.notifier);

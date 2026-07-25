@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wood Block Puzzle</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="game-container">
+    <!-- Üst Header Bar -->
+    <header class="header">
+      <div class="icon-btn crown-btn">👑</div>
+      <div class="score-container">
+        <div class="score">3456-102</div>
+        <div class="progress-bar">
+          <div class="progress-fill"></div>
+        </div>
+      </div>
+      <div class="chest-icon">🧰</div>
+      <div class="icon-btn settings-btn">⚙️</div>
+    </header>
+
+    <!-- Ana Oyun Alanı (Izgara) -->
+    <main class="grid-container">
+      <!-- 8x8 veya 10x10 Izgara Hücreleri -->
+      <!-- Örnek olarak 64 hücre (8x8) -->
+      <script>
+        for (let i = 0; i < 64; i++) {
+          document.write('<div class="cell"></div>');
+        }
+      </script>
+    </main>
+
+    <!-- Kontrol Butonları -->
+    <section class="controls">
+      <button class="action-btn">🔀</button>
+      <button class="action-btn">➖</button>
+      <div class="powerup-btn">
+        <span>🔄</span>
+        <span class="count">5</span>
+        <button class="add-btn">+</button>
+      </div>
+      <div class="powerup-btn">
+        <span>💣</span>
+        <span class="count">2</span>
+        <button class="add-btn">+</button>
+      </div>
+    </section>
+
+    <!-- Blok Seçim Alanı -->
+    <section class="piece-dock">
+      <div class="piece-slot">
+        <!-- Artı Şekli Örneği -->
+        <div class="mini-grid cross-piece">
+          <div class="block cell-1"></div>
+          <div class="block cell-2"></div>
+          <div class="block cell-3"></div>
+          <div class="block cell-4"></div>
+          <div class="block cell-5"></div>
+        </div>
+      </div>
+      <div class="piece-slot"></div>
+      <div class="piece-slot"></div>
+    </section>
+
+    <!-- Alt Footer / Shop Bar -->
+    <footer class="footer">
+      <div class="game-title">
+        <span>Wood Block</span>
+        <strong>PUZZLE</strong>
+      </div>
+      <div class="shop-btn">
+        <div class="coins">
+          <span class="coin">🪙</span>
+          <span class="coin">🪙</span>
+          <span class="coin">🪙</span>
+          <span class="amount">250</span>
+        </div>
+        <div class="shop-label">Shop</div>
+      </div>
+    </footer>
+  </div>
+
+</body>
+</html>

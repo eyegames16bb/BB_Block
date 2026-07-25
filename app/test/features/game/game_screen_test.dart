@@ -79,10 +79,14 @@ void main() {
     await tester.pumpWidget(
       wrap(
         const GameLaunchConfig(mode: GameModeType.level),
+        // No Gold Keys here — otherwise the depleted swap booster would
+        // show a refill badge instead of the literal "0" this test checks
+        // for (that behavior has its own test just below).
         progress: const PlayerProgress(
           rotateCharges: 3,
           swapCharges: 0,
           singleCellRemoveCharges: 5,
+          goldKeyCount: 0,
         ),
       ),
     );
@@ -90,9 +94,16 @@ void main() {
     await tester.pump();
 
     expect(find.byType(BoosterBar), findsOneWidget);
-    expect(find.text('3'), findsOneWidget);
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('5'), findsOneWidget);
+    // Scoped to BoosterBar: the header's Gold Key chip also renders "0"
+    // here (goldKeyCount is 0 too), which would otherwise collide with the
+    // depleted swap booster's own literal "0".
+    final boosterBar = find.byType(BoosterBar);
+    expect(find.descendant(of: boosterBar, matching: find.text('3')),
+        findsOneWidget);
+    expect(find.descendant(of: boosterBar, matching: find.text('0')),
+        findsOneWidget);
+    expect(find.descendant(of: boosterBar, matching: find.text('5')),
+        findsOneWidget);
   });
 
   testWidgets(

@@ -90,14 +90,13 @@ void main() {
     });
 
     test('completing a line clears it and adds line points', () {
-      // Row 8 is one cell short; dropping a single at (8,8) completes it.
+      // Row 9 is one cell short; dropping a single at (9,9) completes it.
       final rows = [
-        for (var r = 0; r < 9; r++)
-          if (r == 8) 'XXXXXXXX.' else '.........',
+        for (var r = 0; r < 10; r++)
+          if (r == 9) 'XXXXXXXXX.' else '..........',
       ];
       final engine = engineOn(
         boardFromRows(rows),
-        pointsPerLine: 9,
         script: [
           [single, single, single],
         ],
@@ -105,7 +104,7 @@ void main() {
 
       final events = engine.placePiece(
         trayIndex: 0,
-        anchor: const GridPosition(row: 8, column: 8),
+        anchor: const GridPosition(row: 9, column: 9),
       );
 
       expect(
@@ -113,17 +112,17 @@ void main() {
         containsAllInOrder(<GameEvent>[
           const GameEvent.piecePlaced(placementPoints: 1),
           const GameEvent.linesCleared(
-            rows: [8],
+            rows: [9],
             columns: [],
-            linePoints: 9,
+            linePoints: 10,
           ),
         ]),
       );
-      // 1 placement point + 9 line points.
-      expect(engine.session.score, 10);
+      // 1 placement point + 10 line points.
+      expect(engine.session.score, 11);
       // The completed row is now empty again.
       expect(
-        engine.session.board.cellAt(const GridPosition(row: 8, column: 0)),
+        engine.session.board.cellAt(const GridPosition(row: 9, column: 0)),
         CellState.empty,
       );
     });

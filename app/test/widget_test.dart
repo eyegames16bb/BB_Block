@@ -1,4 +1,5 @@
 import 'package:bb_block/app.dart';
+import 'package:bb_block/core/constants/app_constants.dart';
 import 'package:bb_block/core/providers/ads_providers.dart';
 import 'package:bb_block/core/providers/persistence_providers.dart';
 import 'package:flutter/material.dart';
@@ -48,11 +49,12 @@ void main() {
       appWith(FakeAdsService(isRewardedAdReady: true)),
     );
 
-    expect(find.text('0'), findsOneWidget);
+    const starting = GoldKeyConstants.startingGoldKeyCount;
+    expect(find.text('$starting'), findsOneWidget);
 
     await tester.tap(find.text('Ödüllü Reklam'));
     await tester.pumpAndSettle();
 
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('${starting + 1}'), findsOneWidget);
   });
 }

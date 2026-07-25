@@ -1,6 +1,7 @@
 import 'package:bb_block/core/theme/app_theme.dart';
 import 'package:bb_block/features/booster/domain/booster_kind.dart';
 import 'package:bb_block/features/game/presentation/widgets/game_palette.dart';
+import 'package:bb_block/features/game/presentation/widgets/pressable_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
 
@@ -65,7 +66,7 @@ class BoosterBar extends StatelessWidget {
               : (goldKeyCount > 0 ? () => onRefill(BoosterKind.swap) : null),
         ),
         _BoosterButton(
-          icon: PhosphorIconsBold.eraser,
+          icon: PhosphorIconsBold.bomb,
           label: 'Sil',
           charges: singleCellRemoveCharges,
           canRefill: goldKeyCount > 0,
@@ -81,12 +82,11 @@ class BoosterBar extends StatelessWidget {
   }
 }
 
-/// A round, coin-like token instead of the earlier bordered square panel —
-/// closer to the reference mockups' compact in-game booster icons than a
-/// literal framed rectangle. A soft radial highlight simulates a raised
-/// lacquered-wood disc; the charge/refill badge sits inset in the token's
-/// own bottom edge rather than as a separately-outlined circle, so it reads
-/// as one integrated piece rather than an icon-plus-frame.
+/// A wood pill button — `.powerup-btn` from the reference mockup — instead
+/// of the earlier circular medallion. Icon and charge badge sit side by
+/// side inside one dark-brown pill with a solid drop ledge, the same
+/// chrome [PressableScale] and `_RoundIconButton` use in `game_screen.dart`,
+/// so every wood button in the HUD reads as one consistent chrome family.
 class _BoosterButton extends StatelessWidget {
   const _BoosterButton({
     required this.icon,
@@ -104,76 +104,54 @@ class _BoosterButton extends StatelessWidget {
   final bool active;
   final VoidCallback? onTap;
 
-  static const double _diameter = 60;
-
   @override
   Widget build(BuildContext context) {
     final enabled = onTap != null;
     final refillable = charges <= 0 && canRefill;
-    final baseColor = active ? GamePalette.recordGold : GamePalette.frameBlock;
-    final edgeColor =
-        active ? GamePalette.frameBlockEdge : AppColors.woodDeep;
+    final borderColor =
+        active ? GamePalette.recordGold : GamePalette.panelDarkBorder;
 
     return Opacity(
       opacity: enabled ? 1 : 0.45,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: _diameter,
-            height: _diameter,
-            child: Material(
-              shape: const CircleBorder(),
-              color: Colors.transparent,
-              child: Ink(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    center: const Alignment(-0.3, -0.4),
-                    radius: 1.1,
-                    colors: [
-                      Color.lerp(baseColor, Colors.white, 0.35)!,
-                      baseColor,
-                      edgeColor,
-                    ],
-                    stops: const [0, 0.55, 1],
+          PressableScale(
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: GamePalette.panelDark,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: borderColor, width: 2),
+                boxShadow: [
+                  const BoxShadow(
+                    color: GamePalette.buttonLedge,
+                    offset: Offset(0, 3),
                   ),
-                  boxShadow: [
+                  if (active)
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
+                      color: GamePalette.recordGold.withValues(alpha: 0.55),
+                      blurRadius: 12,
+                      spreadRadius: 1,
                     ),
-                    if (active)
-                      BoxShadow(
-                        color: GamePalette.recordGold.withValues(alpha: 0.55),
-                        blurRadius: 14,
-                        spreadRadius: 1,
-                      ),
-                  ],
-                ),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: onTap,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    alignment: Alignment.center,
-                    children: [
-                      Icon(icon, color: AppColors.ink, size: 26),
-                      Positioned(
-                        bottom: -6,
-                        child: _ChargeBadge(
-                          charges: charges,
-                          refillable: refillable,
-                        ),
-                      ),
-                    ],
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    icon,
+                    color: active ? GamePalette.recordGold : AppColors.paper,
+                    size: 22,
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  _ChargeBadge(charges: charges, refillable: refillable),
+                ],
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             label,
             style: TextStyle(
@@ -189,6 +167,8 @@ class _BoosterButton extends StatelessWidget {
   }
 }
 
+/// The `.add-btn` square gradient chip from the reference mockup, reused as
+/// the charge count / refill badge instead of a plain outlined circle.
 class _ChargeBadge extends StatelessWidget {
   const _ChargeBadge({required this.charges, required this.refillable});
 
@@ -199,21 +179,28 @@ class _ChargeBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: refillable ? GamePalette.recordGold : AppColors.navy,
-        shape: BoxShape.circle,
-        boxShadow: const [
-          BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 2)),
-        ],
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: refillable
+              ? const [
+                  GamePalette.progressFillLight,
+                  GamePalette.progressFillDark,
+                ]
+              : const [GamePalette.woodButtonLight, GamePalette.woodButtonDark],
+        ),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: GamePalette.woodButtonBorder),
       ),
       child: Padding(
         padding: const EdgeInsets.all(4),
         child: refillable
-            ? const Icon(PhosphorIcons.keyFill, color: AppColors.ink, size: 12)
+            ? const Icon(PhosphorIcons.keyFill, color: AppColors.ink, size: 13)
             : Text(
                 '$charges',
                 style: const TextStyle(
-                  color: AppColors.paper,
-                  fontSize: 12,
+                  color: AppColors.ink,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
                   height: 1,
                 ),

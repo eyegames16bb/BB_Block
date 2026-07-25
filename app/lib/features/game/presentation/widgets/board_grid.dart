@@ -10,7 +10,7 @@ import 'package:bb_block/features/game_engine/domain/tray_piece.dart';
 import 'package:flutter/material.dart';
 import 'package:newton_particles/newton_particles.dart';
 
-/// The 9×9 play surface. Renders the current [board], accepts pieces dragged
+/// The 10×10 play surface. Renders the current [board], accepts pieces dragged
 /// from the tray (identified by their tray index), shows a live ghost preview
 /// of where the piece would land, and calls [onPlace] on a valid drop.
 ///

@@ -20,12 +20,22 @@ class PieceTray extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        for (var index = 0; index < tray.length; index++)
-          Expanded(child: _slot(tray[index], index)),
-      ],
+    // The reference mockup's `.piece-dock` — a dark-wood panel grounding
+    // the slots, instead of the pieces floating directly on the table
+    // background with nothing behind them.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: GamePalette.panelDark,
+        border: Border.all(color: GamePalette.panelDarkBorder, width: 3),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          for (var index = 0; index < tray.length; index++)
+            Expanded(child: _slot(tray[index], index)),
+        ],
+      ),
     );
   }
 

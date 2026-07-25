@@ -1,5 +1,5 @@
 abstract final class BoardConstants {
-  static const int gridSize = 9;
+  static const int gridSize = 10;
   static const int piecesPerTurn = 3;
 }
 
@@ -23,4 +23,10 @@ abstract final class BoosterConstants {
 
 abstract final class GoldKeyConstants {
   static const int levelsPerGoldKeyReward = 10;
+
+  /// First-time balance for a fresh install. Spent keys don't come back on
+  /// their own — the only way back to this count is a clean reinstall,
+  /// since `PlayerProgress` is the single local save blob and there's no
+  /// server-side account to restore from (see CLAUDE.md).
+  static const int startingGoldKeyCount = 10;
 }
