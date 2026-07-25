@@ -76,11 +76,13 @@ class HomeScreen extends ConsumerWidget {
                 _BestScores(progress: progress),
                 const Spacer(),
                 _ModeButton(
+                  icon: PhosphorIconsFill.mountains,
                   label: 'Level Mod',
                   onTap: () => _startLevel(context, ref, progress.goldKeyCount),
                 ),
                 const SizedBox(height: 12),
                 _ModeButton(
+                  icon: PhosphorIconsFill.crown,
                   label: 'Klasik Mod',
                   onTap: () => _startClassic(context),
                 ),

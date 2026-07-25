@@ -67,12 +67,22 @@ class PieceTray extends StatelessWidget {
 
     if (!rotateArmed) return draggable;
 
+    // A soft gold glow instead of a hard-edged border rectangle — reads as
+    // "this piece is highlighted/targetable" without looking like a boxed
+    // frame around it.
     return GestureDetector(
       onTap: () => onPieceTap?.call(index),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          border: Border.all(color: GamePalette.frameBlockEdge, width: 2),
-          borderRadius: BorderRadius.circular(8),
+          color: GamePalette.recordGold.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: GamePalette.recordGold.withValues(alpha: 0.45),
+              blurRadius: 12,
+              spreadRadius: 1,
+            ),
+          ],
         ),
         child: draggable,
       ),

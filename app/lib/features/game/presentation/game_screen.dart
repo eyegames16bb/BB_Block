@@ -125,8 +125,10 @@ class _GameScreenState extends ConsumerState<GameScreen>
                           // width and a height budget that leaves room for
                           // the tray (and the booster bar, when shown)
                           // below it, so nothing overflows on any screen.
+                          // The booster row is a round token (60) + label
+                          // beneath it now, taller than the old flat panel.
                           final reservedHeight =
-                              _boostersVisible ? 88.0 : 0.0;
+                              _boostersVisible ? 118.0 : 0.0;
                           final boardSide = math.min(
                             constraints.maxWidth,
                             (constraints.maxHeight - reservedHeight) * 0.74,
