@@ -46,7 +46,17 @@ class PieceTray extends StatelessWidget {
 
     final draggable = Draggable<int>(
       data: index,
-      dragAnchorStrategy: pointerDragAnchorStrategy,
+      // Lifts the dragged piece above the fingertip instead of anchoring
+      // its (0,0) cell exactly under the touch point
+      // (`pointerDragAnchorStrategy`) — otherwise the finger itself hides
+      // the very cells the player is trying to aim at. `BoardGrid._anchorFrom`
+      // reads the feedback
+      // widget's own reported position to compute the placement cell, so
+      // shifting the anchor here changes *where the piece is shown and
+      // placed* together — it stays what-you-see-is-what-you-get, just
+      // shown above the finger rather than under it.
+      dragAnchorStrategy: (draggable, context, position) =>
+          Offset(0, dragCellSize * 1.3),
       feedback: PieceView(shape: piece.shape, cellSize: dragCellSize),
       childWhenDragging: Opacity(
         opacity: GamePalette.draggingSlotOpacity,

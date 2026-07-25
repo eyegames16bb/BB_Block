@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:bb_block/core/constants/app_constants.dart';
 import 'package:bb_block/core/providers/audio_providers.dart';
 import 'package:bb_block/core/providers/haptics_providers.dart';
 import 'package:bb_block/core/providers/persistence_providers.dart';
@@ -57,9 +58,24 @@ class PlayerProgressController extends _$PlayerProgressController {
     await _persist(updated);
   }
 
+  /// Advances to the next level and, every
+  /// [GoldKeyConstants.levelsPerGoldKeyReward] completed levels, grants a
+  /// free Gold Key — a milestone bonus on top of the ad-based way to earn
+  /// them. `currentLevel` starts at 1, so the number of levels *completed*
+  /// so far is `newLevel - 1`.
   Future<void> advanceLevel() async {
     final current = state.value ?? const PlayerProgress();
-    await _persist(current.copyWith(currentLevel: current.currentLevel + 1));
+    final newLevel = current.currentLevel + 1;
+    final completedLevels = newLevel - 1;
+    final earnsGoldKey =
+        completedLevels % GoldKeyConstants.levelsPerGoldKeyReward == 0;
+    await _persist(
+      current.copyWith(
+        currentLevel: newLevel,
+        goldKeyCount:
+            earnsGoldKey ? current.goldKeyCount + 1 : current.goldKeyCount,
+      ),
+    );
   }
 
   /// Rewarded-ad payout. The actual ad SDK isn't wired up yet (see

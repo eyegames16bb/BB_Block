@@ -1,3 +1,4 @@
+import 'package:bb_block/core/constants/app_constants.dart';
 import 'package:bb_block/core/providers/audio_providers.dart';
 import 'package:bb_block/core/providers/haptics_providers.dart';
 import 'package:bb_block/core/providers/persistence_providers.dart';
@@ -70,6 +71,50 @@ void main() {
       2,
     );
     expect((await repo.load()).currentLevel, 2);
+  });
+
+  test(
+      'advanceLevel does not grant a Gold Key before the milestone is '
+      'reached', () async {
+    final container = containerWith(FakeGameSaveRepository());
+    await container.read(playerProgressControllerProvider.future);
+    final controller =
+        container.read(playerProgressControllerProvider.notifier);
+
+    for (var i = 0; i < GoldKeyConstants.levelsPerGoldKeyReward - 1; i++) {
+      await controller.advanceLevel();
+    }
+
+    expect(
+      container.read(playerProgressControllerProvider).value!.goldKeyCount,
+      0,
+    );
+  });
+
+  test(
+      'advanceLevel grants a free Gold Key every '
+      'levelsPerGoldKeyReward completed levels', () async {
+    final container = containerWith(FakeGameSaveRepository());
+    await container.read(playerProgressControllerProvider.future);
+    final controller =
+        container.read(playerProgressControllerProvider.notifier);
+
+    for (var i = 0; i < GoldKeyConstants.levelsPerGoldKeyReward; i++) {
+      await controller.advanceLevel();
+    }
+
+    final progress = container.read(playerProgressControllerProvider).value!;
+    expect(progress.currentLevel, 1 + GoldKeyConstants.levelsPerGoldKeyReward);
+    expect(progress.goldKeyCount, 1);
+
+    // A second full cycle grants a second key.
+    for (var i = 0; i < GoldKeyConstants.levelsPerGoldKeyReward; i++) {
+      await controller.advanceLevel();
+    }
+    expect(
+      container.read(playerProgressControllerProvider).value!.goldKeyCount,
+      2,
+    );
   });
 
   test('grantGoldKey increments the persisted count', () async {
