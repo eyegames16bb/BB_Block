@@ -1,15 +1,18 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:bb_block/core/services/audio/audio_service.dart';
+import 'package:bb_block/core/services/audio/procedural_sfx.dart';
 import 'package:bb_block/core/services/audio/sound_effect.dart';
 import 'package:bb_block/core/utils/app_logger.dart';
 
 /// Pools a handful of [AudioPlayer]s round-robin for overlapping one-shot
 /// SFX, and keeps a dedicated looping player for the ambient background
-/// track. Expects assets at `assets/audio/sfx/<effect>.mp3` and
-/// `assets/audio/ambient/background_loop.mp3` — not bundled yet, see
-/// CLAUDE.md. Every play call is wrapped so a missing asset logs instead of
-/// throwing: the game is already wired end-to-end for sound and should keep
-/// working silently until real audio files land.
+/// track. Most gameplay SFX are synthesized in-memory by [proceduralSfxFor]
+/// (no licensed asset needed — see CLAUDE.md's Mixkit/Zapsplat concern) and
+/// played via `BytesSource`; anything without a procedural recipe falls
+/// back to `assets/audio/sfx/<effect>.mp3`, which isn't bundled yet. The
+/// ambient loop always uses `assets/audio/ambient/background_loop.mp3`,
+/// also not bundled. Every play call is wrapped so a missing asset logs
+/// instead of throwing.
 final class AudioPlayersAudioService implements AudioService {
   AudioPlayersAudioService({int concurrentEffectPlayers = 6})
       : _effectPlayers = List.generate(
@@ -41,7 +44,14 @@ final class AudioPlayersAudioService implements AudioService {
     try {
       await player.stop();
       await player.setVolume(_volume);
-      await player.play(AssetSource('audio/sfx/${effect.name}.mp3'));
+      final proceduralBytes = proceduralSfxFor(effect);
+      if (proceduralBytes != null) {
+        await player.play(
+          BytesSource(proceduralBytes, mimeType: 'audio/wav'),
+        );
+      } else {
+        await player.play(AssetSource('audio/sfx/${effect.name}.mp3'));
+      }
     } on Object catch (error) {
       appLogger.w('Could not play SFX ${effect.name}: $error');
     }

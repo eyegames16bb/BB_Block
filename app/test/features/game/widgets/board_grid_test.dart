@@ -1,3 +1,11 @@
+// `BoardGrid` now wraps its grid in a `Newton` particle overlay (dust burst
+// on line clear / frame teardown — see wood_dust_effect.dart), and Newton
+// runs a continuous Ticker for as long as it's mounted, regardless of
+// whether any effect is active. That means `pumpAndSettle()` never
+// terminates here (it waits for zero scheduled frames, which never happens)
+// — every settle below is a bounded `pump(duration)` instead, long enough
+// to run any of this file's animations (longest is the 520ms frame
+// teardown) to completion in one shot.
 import 'package:bb_block/features/board/domain/entities/piece_shape.dart';
 import 'package:bb_block/features/game/presentation/widgets/board_grid.dart';
 import 'package:bb_block/features/game/presentation/widgets/wood_tile.dart';
@@ -38,7 +46,7 @@ void main() {
     await gesture.moveTo(target);
     await tester.pump(const Duration(milliseconds: 50));
     await gesture.up();
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
   }
 
   testWidgets(
@@ -57,7 +65,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
 
     final boardTopLeft = tester.getTopLeft(find.byType(BoardGrid));
     // Comfortably inside the already-filled (0,0) cell.
@@ -80,7 +88,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
 
     final boardTopLeft = tester.getTopLeft(find.byType(BoardGrid));
     await dragOnto(tester, boardTopLeft + const Offset(15, 15));
@@ -113,7 +121,7 @@ void main() {
             BoardGrid(board: filledBoard, tray: const [], onPlace: (_, _) {}),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
 
     await tester.pumpWidget(
       harness(
@@ -131,7 +139,7 @@ void main() {
     expect(find.byType(WoodTile), findsOneWidget);
 
     // Once the break animation completes, the overlay removes itself.
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
     expect(find.byType(WoodTile), findsNothing);
   });
 
@@ -146,7 +154,7 @@ void main() {
         boardGrid: BoardGrid(board: framed, tray: const [], onPlace: (_, _) {}),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
 
     await tester.pumpWidget(
       harness(
@@ -165,7 +173,7 @@ void main() {
 
     // Once the (longer, staggered) break animation fully completes, every
     // overlay has removed itself.
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
     expect(
       find.byWidgetPredicate((widget) => widget is WoodTile && widget.isFrame),
       findsNothing,

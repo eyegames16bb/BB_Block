@@ -1,11 +1,14 @@
+import 'package:bb_block/core/theme/app_theme.dart';
 import 'package:bb_block/features/board/domain/entities/board.dart';
 import 'package:bb_block/features/board/domain/entities/cell_state.dart';
 import 'package:bb_block/features/board/domain/entities/grid_position.dart';
 import 'package:bb_block/features/board/domain/services/placement_validator.dart';
 import 'package:bb_block/features/game/presentation/widgets/game_palette.dart';
+import 'package:bb_block/features/game/presentation/widgets/wood_dust_effect.dart';
 import 'package:bb_block/features/game/presentation/widgets/wood_tile.dart';
 import 'package:bb_block/features/game_engine/domain/tray_piece.dart';
 import 'package:flutter/material.dart';
+import 'package:newton_particles/newton_particles.dart';
 
 /// The 9×9 play surface. Renders the current [board], accepts pieces dragged
 /// from the tray (identified by their tray index), shows a live ghost preview
@@ -42,6 +45,7 @@ class _BoardGridState extends State<BoardGrid> {
   static const Duration _frameBreakDuration = Duration(milliseconds: 520);
 
   final GlobalKey _gridKey = GlobalKey();
+  final GlobalKey<NewtonState> _newtonKey = GlobalKey<NewtonState>();
   _Preview? _preview;
 
   // Bumped for a position exactly when it transitions to filled, so the
@@ -79,14 +83,59 @@ class _BoardGridState extends State<BoardGrid> {
         if (oldState == CellState.filled && newState != CellState.filled) {
           _clearingCells.add(position);
           _clearGeneration[position] = (_clearGeneration[position] ?? 0) + 1;
+          _burstDustAt(position);
         }
         if (oldState == CellState.frame && newState != CellState.frame) {
           _frameClearingCells.add(position);
           _frameClearGeneration[position] =
               (_frameClearGeneration[position] ?? 0) + 1;
+          _burstDustAt(position, isFrame: true);
         }
       }
     }
+  }
+
+  /// Fires a small wood-chip particle burst at [position] via the `Newton`
+  /// overlay, on top of the existing scale/opacity overlay animation — see
+  /// CLAUDE.md decision #4. Frame cells stagger their burst by the same
+  /// distance-from-corner delay the visual teardown wave already uses
+  /// (`_frameClearingOverlay`), so the dust and the shattering tiles read as
+  /// one coordinated event instead of two out-of-sync effects.
+  void _burstDustAt(GridPosition position, {bool isFrame = false}) {
+    final origin = Offset(
+      (position.column + 0.5) / widget.board.size,
+      (position.row + 0.5) / widget.board.size,
+    );
+    final colors = isFrame
+        ? const [
+            GamePalette.frameBlock,
+            GamePalette.frameBlockEdge,
+            AppColors.woodDeep,
+          ]
+        : const [
+            GamePalette.placedBlock,
+            GamePalette.placedBlockEdge,
+            AppColors.woodDeep,
+          ];
+
+    void fire() => _newtonKey.currentState?.addEffect(
+          woodDustBurst(
+            origin: origin,
+            colors: colors,
+            particleCount: isFrame ? 5 : 7,
+          ),
+        );
+
+    if (!isFrame) {
+      fire();
+      return;
+    }
+    final delayFraction = ((position.row + position.column) /
+            (2 * widget.board.size))
+        .clamp(0.0, 0.5);
+    Future.delayed(_frameBreakDuration * delayFraction, () {
+      if (mounted) fire();
+    });
   }
 
   @override
@@ -129,25 +178,28 @@ class _BoardGridState extends State<BoardGrid> {
                   builder: (context, constraints) {
                     final cellSize =
                         constraints.maxWidth / widget.board.size;
-                    return Container(
-                      key: _gridKey,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          for (var row = 0; row < widget.board.size; row++)
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                for (var col = 0;
-                                    col < widget.board.size;
-                                    col++)
-                                  _cell(
-                                    GridPosition(row: row, column: col),
-                                    cellSize,
-                                  ),
-                              ],
-                            ),
-                        ],
+                    return Newton(
+                      key: _newtonKey,
+                      child: Container(
+                        key: _gridKey,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (var row = 0; row < widget.board.size; row++)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  for (var col = 0;
+                                      col < widget.board.size;
+                                      col++)
+                                    _cell(
+                                      GridPosition(row: row, column: col),
+                                      cellSize,
+                                    ),
+                                ],
+                              ),
+                          ],
+                        ),
                       ),
                     );
                   },
