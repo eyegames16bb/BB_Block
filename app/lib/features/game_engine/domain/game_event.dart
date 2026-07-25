@@ -34,10 +34,9 @@ sealed class GameEvent with _$GameEvent {
   /// Level Mode passed 900 points and the border frame was torn down.
   const factory GameEvent.frameDestroyed() = GameEventFrameDestroyed;
 
-  /// A tray piece was rotated by the Rotate booster.
-  const factory GameEvent.pieceRotated({
-    required int trayIndex,
-  }) = GameEventPieceRotated;
+  /// Every unused tray piece was rotated 90° by the Rotate booster — it
+  /// applies to the whole tray at once, the same as the Swap booster does.
+  const factory GameEvent.trayRotated() = GameEventTrayRotated;
 
   /// The whole tray was replaced by the Swap booster.
   const factory GameEvent.traySwapped() = GameEventTraySwapped;

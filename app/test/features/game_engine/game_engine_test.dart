@@ -243,19 +243,42 @@ void main() {
   });
 
   group('boosters', () {
-    test('rotatePiece swaps the tray shape for its rotation', () {
+    test('rotateTray rotates every unused piece at once', () {
       final lShape = shapeById(PieceShapeId.lTriomino0);
       final engine = engineOn(
         Board.empty(),
         script: [
-          [lShape, single, single],
+          [lShape, lShape, lShape],
         ],
       );
 
-      final events = engine.rotatePiece(0);
+      final events = engine.rotateTray();
 
-      expect(events.first, const GameEvent.pieceRotated(trayIndex: 0));
-      expect(engine.session.tray[0].shape.cells, isNot(lShape.cells));
+      expect(events.first, const GameEvent.trayRotated());
+      for (final piece in engine.session.tray) {
+        expect(piece.shape.cells, isNot(lShape.cells));
+      }
+    });
+
+    test('rotateTray leaves an already-used piece untouched', () {
+      final lShape = shapeById(PieceShapeId.lTriomino0);
+      final engine = engineOn(
+        Board.empty(),
+        script: [
+          [lShape, lShape, lShape],
+        ],
+      );
+
+      engine.placePiece(
+        trayIndex: 0,
+        anchor: const GridPosition(row: 0, column: 0),
+      );
+      engine.rotateTray();
+
+      // Used pieces are frozen — still the *original*, un-rotated shape.
+      expect(engine.session.tray[0].isUsed, isTrue);
+      expect(engine.session.tray[0].shape.cells, lShape.cells);
+      expect(engine.session.tray[1].shape.cells, isNot(lShape.cells));
     });
 
     test('swapTray replaces every tray piece', () {
@@ -334,7 +357,7 @@ void main() {
         ],
       );
 
-      expect(engine.rotatePiece(0), [const GameEvent.invalidMove()]);
+      expect(engine.rotateTray(), [const GameEvent.invalidMove()]);
       expect(engine.swapTray(), [const GameEvent.invalidMove()]);
       expect(
         engine.removeCell(const GridPosition(row: 0, column: 1)),
@@ -365,7 +388,7 @@ void main() {
         ],
       );
 
-      engine.rotatePiece(0);
+      engine.rotateTray();
 
       expect(engine.session.rotateCharges, 0);
       expect(engine.session.swapCharges, 1);
@@ -381,12 +404,12 @@ void main() {
       );
 
       // Default rotate charge is 1 — the first rotate succeeds...
-      final first = engine.rotatePiece(0);
+      final first = engine.rotateTray();
       expect(first.first, isNot(const GameEvent.invalidMove()));
 
       // ...the second must be refused, and the tray shape stays as it was.
       final shapeAfterFirstRotate = engine.session.tray[0].shape;
-      final second = engine.rotatePiece(0);
+      final second = engine.rotateTray();
 
       expect(second, [const GameEvent.invalidMove()]);
       expect(engine.session.tray[0].shape, shapeAfterFirstRotate);

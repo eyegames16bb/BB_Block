@@ -20,8 +20,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
 
-enum _ArmedBooster { rotate, remove }
-
 class GameScreen extends ConsumerStatefulWidget {
   const GameScreen({required this.config, super.key});
 
@@ -33,7 +31,10 @@ class GameScreen extends ConsumerStatefulWidget {
 
 class _GameScreenState extends ConsumerState<GameScreen>
     with WidgetsBindingObserver {
-  _ArmedBooster? _armed;
+  // Single Cell Remove still targets a board cell, so it keeps an
+  // arm-then-tap flow. Rotate no longer does — it applies to the whole
+  // tray instantly on tap, the same as Swap.
+  bool _removalArmed = false;
   bool _isPaused = false;
 
   // Bumped every time the score goes up, so the keyed `_ScorePopup` below
@@ -144,11 +145,10 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                 child: BoardGrid(
                                   board: session.board,
                                   tray: session.tray,
-                                  removalArmed:
-                                      _armed == _ArmedBooster.remove,
+                                  removalArmed: _removalArmed,
                                   onCellTap: (position) {
                                     controller.removeCell(position);
-                                    setState(() => _armed = null);
+                                    setState(() => _removalArmed = false);
                                   },
                                   onPlace: (trayIndex, anchor) =>
                                       controller.placePiece(
@@ -164,11 +164,6 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                 child: PieceTray(
                                   tray: session.tray,
                                   dragCellSize: cellSize,
-                                  rotateArmed: _armed == _ArmedBooster.rotate,
-                                  onPieceTap: (trayIndex) {
-                                    controller.rotatePiece(trayIndex);
-                                    setState(() => _armed = null);
-                                  },
                                 ),
                               ),
                               if (_boostersVisible) ...[
@@ -179,24 +174,11 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                   singleCellRemoveCharges:
                                       session.singleCellRemoveCharges,
                                   goldKeyCount: progress.goldKeyCount,
-                                  rotateArmed: _armed == _ArmedBooster.rotate,
-                                  removalArmed:
-                                      _armed == _ArmedBooster.remove,
-                                  onRotateTap: () => setState(
-                                    () => _armed =
-                                        _armed == _ArmedBooster.rotate
-                                            ? null
-                                            : _ArmedBooster.rotate,
-                                  ),
-                                  onSwapTap: () {
-                                    controller.swapTray();
-                                    setState(() => _armed = null);
-                                  },
+                                  removalArmed: _removalArmed,
+                                  onRotateTap: controller.rotateTray,
+                                  onSwapTap: controller.swapTray,
                                   onRemovalTap: () => setState(
-                                    () => _armed =
-                                        _armed == _ArmedBooster.remove
-                                            ? null
-                                            : _ArmedBooster.remove,
+                                    () => _removalArmed = !_removalArmed,
                                   ),
                                   onRefill: (kind) => ref
                                       .read(

@@ -58,7 +58,7 @@ class GameController extends _$GameController {
     _apply(_engine.placePiece(trayIndex: trayIndex, anchor: anchor));
   }
 
-  void rotatePiece(int trayIndex) => _apply(_engine.rotatePiece(trayIndex));
+  void rotateTray() => _apply(_engine.rotateTray());
 
   void swapTray() => _apply(_engine.swapTray());
 
@@ -102,7 +102,7 @@ class GameController extends _$GameController {
   }
 
   bool _isBoosterUseEvent(GameEvent event) =>
-      event is GameEventPieceRotated ||
+      event is GameEventTrayRotated ||
       event is GameEventTraySwapped ||
       event is GameEventCellRemoved;
 

@@ -41,8 +41,8 @@ class BoardGrid extends StatefulWidget {
 class _BoardGridState extends State<BoardGrid> {
   static const PlacementValidator _validator = DefaultPlacementValidator();
   static const Duration _fillPopDuration = Duration(milliseconds: 260);
-  static const Duration _clearBreakDuration = Duration(milliseconds: 320);
-  static const Duration _frameBreakDuration = Duration(milliseconds: 520);
+  static const Duration _clearBreakDuration = Duration(milliseconds: 480);
+  static const Duration _frameBreakDuration = Duration(milliseconds: 650);
 
   final GlobalKey _gridKey = GlobalKey();
   final GlobalKey<NewtonState> _newtonKey = GlobalKey<NewtonState>();
@@ -224,6 +224,10 @@ class _BoardGridState extends State<BoardGrid> {
         height: cellSize,
         child: Stack(
           fit: StackFit.expand,
+          // The break/fall overlays translate well past this cell's own
+          // bounds (see _clearingOverlay/_frameClearingOverlay) — clipping
+          // here would just hide the fall after a few pixels.
+          clipBehavior: Clip.none,
           children: [
             _baseCell(position, state, cellSize),
             if (_clearingCells.contains(position))
@@ -285,34 +289,51 @@ class _BoardGridState extends State<BoardGrid> {
     }
   }
 
-  /// Renders a fading, outward-bursting wood tile for a cell that was just
-  /// cleared, then removes itself from [_clearingCells] once the animation
-  /// finishes so the (already-empty) base cell shows through permanently.
+  /// Renders a wood tile that cracks and tumbles downward off the board for
+  /// a cell that was just cleared, then removes itself from [_clearingCells]
+  /// once the animation finishes so the (already-empty) base cell shows
+  /// through permanently. Horizontal drift and rotation are derived from
+  /// the cell's own position (not `Random`) so the same cell always falls
+  /// the same way on replay, and no state needs to be cached per-cell.
   Widget _clearingOverlay(GridPosition position, double cellSize) {
+    final drift = _fallDrift(position);
+    final spin = _fallSpin(position);
+
     return TweenAnimationBuilder<double>(
       key: ValueKey('clear-$position-${_clearGeneration[position] ?? 0}'),
       tween: Tween(begin: 0, end: 1),
       duration: _clearBreakDuration,
-      curve: Curves.easeOut,
+      curve: Curves.easeIn,
       onEnd: () {
         if (mounted) setState(() => _clearingCells.remove(position));
       },
       builder: (context, t, child) => Opacity(
-        opacity: 1 - t,
-        child: Transform.scale(scale: 1 + t * 0.35, child: child),
+        opacity: (1 - t * 1.2).clamp(0.0, 1.0),
+        child: Transform.translate(
+          // A quadratic fall (t*t) reads as gravity picking up speed,
+          // rather than a constant-speed drift.
+          offset: Offset(drift * cellSize * 0.4 * t, cellSize * 2.2 * t * t),
+          child: Transform.rotate(
+            angle: spin * t,
+            child: Transform.scale(scale: 1 - t * 0.3, child: child),
+          ),
+        ),
       ),
       child: WoodTile(size: cellSize),
     );
   }
 
-  /// The Level Mode 900-point frame teardown. Deliberately bigger, slower
-  /// and staggered (via an [Interval] keyed to distance from the top-left
-  /// corner) into an outward wave, so the whole border shattering reads as
-  /// a distinct, larger event rather than a big line clear.
+  /// The Level Mode 900-point frame teardown. Deliberately bigger, slower,
+  /// falls farther, and is staggered (via an [Interval] keyed to distance
+  /// from the top-left corner) into an outward wave, so the whole border
+  /// shattering reads as a distinct, larger event than an ordinary line
+  /// break rather than the same animation.
   Widget _frameClearingOverlay(GridPosition position, double cellSize) {
     final delayFraction = ((position.row + position.column) /
             (2 * widget.board.size))
         .clamp(0.0, 0.5);
+    final drift = _fallDrift(position);
+    final spin = _fallSpin(position);
 
     return TweenAnimationBuilder<double>(
       key: ValueKey(
@@ -320,17 +341,33 @@ class _BoardGridState extends State<BoardGrid> {
       ),
       tween: Tween(begin: 0, end: 1),
       duration: _frameBreakDuration,
-      curve: Interval(delayFraction, 1, curve: Curves.easeOut),
+      curve: Interval(delayFraction, 1, curve: Curves.easeIn),
       onEnd: () {
         if (mounted) setState(() => _frameClearingCells.remove(position));
       },
       builder: (context, t, child) => Opacity(
-        opacity: 1 - t,
-        child: Transform.scale(scale: 1 + t * 0.6, child: child),
+        opacity: (1 - t * 1.15).clamp(0.0, 1.0),
+        child: Transform.translate(
+          offset: Offset(drift * cellSize * 0.6 * t, cellSize * 3.2 * t * t),
+          child: Transform.rotate(
+            angle: spin * 1.4 * t,
+            child: Transform.scale(scale: 1 - t * 0.35, child: child),
+          ),
+        ),
       ),
       child: WoodTile(size: cellSize, isFrame: true),
     );
   }
+
+  /// A deterministic pseudo-random horizontal drift multiplier in [-1, 1]
+  /// for the given cell, so falling tiles scatter instead of dropping in
+  /// a perfectly straight column.
+  double _fallDrift(GridPosition position) =>
+      ((position.row * 7 + position.column * 13) % 5 - 2) / 2;
+
+  /// A deterministic pseudo-random rotation (radians) for the given cell.
+  double _fallSpin(GridPosition position) =>
+      ((position.row * 11 + position.column * 5) % 3 - 1) * 0.7;
 
   Color? _previewColorFor(GridPosition position) {
     final preview = _preview;

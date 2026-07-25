@@ -166,30 +166,27 @@ class GameEngine {
     return events;
   }
 
-  /// Rotates the tray piece at [trayIndex] 90° clockwise in place. Consumes
-  /// one rotate charge; unavailable at zero charges (including Classic Mode,
-  /// which always starts at zero).
-  List<GameEvent> rotatePiece(int trayIndex) {
-    final piece = _session.tray[trayIndex];
-    if (_session.isOver || piece.isUsed || _session.rotateCharges <= 0) {
+  /// Rotates every unused tray piece 90° clockwise in place, all at once —
+  /// applied instantly like the Swap booster, not a "pick a piece" flow.
+  /// Consumes one rotate charge; unavailable at zero charges (including
+  /// Classic Mode, which always starts at zero).
+  List<GameEvent> rotateTray() {
+    if (_session.isOver || _session.rotateCharges <= 0) {
       return const [GameEvent.invalidMove()];
     }
 
-    final rotatedShape = _rotateCommand.execute(piece.shape);
     final tray = [
-      for (var i = 0; i < _session.tray.length; i++)
-        if (i == trayIndex) _session.tray[i].copyWith(shape: rotatedShape)
-        else _session.tray[i],
+      for (final piece in _session.tray)
+        piece.isUsed
+            ? piece
+            : piece.copyWith(shape: _rotateCommand.execute(piece.shape)),
     ];
 
     _session = _session.copyWith(
       tray: tray,
       rotateCharges: _session.rotateCharges - 1,
     );
-    return [
-      GameEvent.pieceRotated(trayIndex: trayIndex),
-      ..._reevaluateOutcome(),
-    ];
+    return [const GameEvent.trayRotated(), ..._reevaluateOutcome()];
   }
 
   /// Replaces the entire tray with a fresh batch of small pieces. Consumes

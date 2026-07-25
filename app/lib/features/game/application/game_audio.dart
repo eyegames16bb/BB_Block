@@ -16,7 +16,7 @@ SoundEffect? soundEffectFor(GameEvent event) => switch (event) {
       // already sounded this turn, so a refill stays silent.
       GameEventTrayRefilled() => null,
       GameEventFrameDestroyed() => SoundEffect.frameDestroy,
-      GameEventPieceRotated() => SoundEffect.pieceRotate,
+      GameEventTrayRotated() => SoundEffect.pieceRotate,
       GameEventTraySwapped() => SoundEffect.boosterActivate,
       GameEventCellRemoved() => SoundEffect.woodCrack,
       GameEventRoundEnded(:final outcome) => switch (outcome) {

@@ -69,7 +69,7 @@ void main() {
 
     // Classic Mode never has boosters (boostersEnabled is always false for
     // it), so this is refused unconditionally — no board setup needed.
-    controller.rotatePiece(0);
+    controller.rotateTray();
 
     expect(haptics.triggered, [HapticIntensity.light]);
     expect(audio.playedEffects, [SoundEffect.invalidMove]);

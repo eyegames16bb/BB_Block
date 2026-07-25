@@ -64,7 +64,7 @@ void main() {
 
   test('boosters: rotate is a tick, swap and cell removal are medium', () {
     expect(
-      hapticIntensityFor(const GameEvent.pieceRotated(trayIndex: 0)),
+      hapticIntensityFor(const GameEvent.trayRotated()),
       HapticIntensity.selection,
     );
     expect(

@@ -6,25 +6,17 @@ import 'package:flutter/material.dart';
 /// The three-piece tray. Each unused piece is draggable onto the board; the
 /// dragged feedback is rendered at [dragCellSize] so it matches the board's
 /// scale, while the resting tray shows pieces smaller at [trayCellSize].
-///
-/// When [rotateArmed] is true (the Rotate booster is active), dragging still
-/// works but tapping a piece calls [onPieceTap] with its tray index instead
-/// — the caller rotates that one piece and disarms.
 class PieceTray extends StatelessWidget {
   const PieceTray({
     required this.tray,
     required this.dragCellSize,
     this.trayCellSize = 22,
-    this.rotateArmed = false,
-    this.onPieceTap,
     super.key,
   });
 
   final List<TrayPiece> tray;
   final double dragCellSize;
   final double trayCellSize;
-  final bool rotateArmed;
-  final void Function(int trayIndex)? onPieceTap;
 
   @override
   Widget build(BuildContext context) {
@@ -44,17 +36,17 @@ class PieceTray extends StatelessWidget {
       child: PieceView(shape: piece.shape, cellSize: trayCellSize),
     );
 
-    final draggable = Draggable<int>(
+    return Draggable<int>(
       data: index,
       // Lifts the dragged piece above the fingertip instead of anchoring
       // its (0,0) cell exactly under the touch point
       // (`pointerDragAnchorStrategy`) — otherwise the finger itself hides
-      // the very cells the player is trying to aim at. `BoardGrid._anchorFrom`
-      // reads the feedback
-      // widget's own reported position to compute the placement cell, so
-      // shifting the anchor here changes *where the piece is shown and
-      // placed* together — it stays what-you-see-is-what-you-get, just
-      // shown above the finger rather than under it.
+      // the very cells the player is trying to aim at.
+      // `BoardGrid._anchorFrom` reads the feedback widget's own reported
+      // position to compute the placement cell, so shifting the anchor
+      // here changes *where the piece is shown and placed* together — it
+      // stays what-you-see-is-what-you-get, just shown above the finger
+      // rather than under it.
       dragAnchorStrategy: (draggable, context, position) =>
           Offset(0, dragCellSize * 1.3),
       feedback: PieceView(shape: piece.shape, cellSize: dragCellSize),
@@ -63,29 +55,6 @@ class PieceTray extends StatelessWidget {
         child: resting,
       ),
       child: resting,
-    );
-
-    if (!rotateArmed) return draggable;
-
-    // A soft gold glow instead of a hard-edged border rectangle — reads as
-    // "this piece is highlighted/targetable" without looking like a boxed
-    // frame around it.
-    return GestureDetector(
-      onTap: () => onPieceTap?.call(index),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: GamePalette.recordGold.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: GamePalette.recordGold.withValues(alpha: 0.45),
-              blurRadius: 12,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
-        child: draggable,
-      ),
     );
   }
 }

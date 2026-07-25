@@ -17,7 +17,7 @@ HapticIntensity? hapticIntensityFor(GameEvent event) => switch (event) {
       // redundant double-pulse.
       GameEventTrayRefilled() => null,
       GameEventFrameDestroyed() => HapticIntensity.heavy,
-      GameEventPieceRotated() => HapticIntensity.selection,
+      GameEventTrayRotated() => HapticIntensity.selection,
       GameEventTraySwapped() => HapticIntensity.medium,
       GameEventCellRemoved() => HapticIntensity.medium,
       GameEventRoundEnded() => HapticIntensity.heavy,

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:bb_block/core/services/audio/procedural_sfx.dart';
 import 'package:bb_block/core/services/audio/sound_effect.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -56,5 +58,27 @@ void main() {
 
   test('an effect with no recipe returns null', () {
     expect(proceduralSfxFor(SoundEffect.woodMerge), isNull);
+  });
+
+  test('proceduralSfxPathFor writes a real, non-empty WAV file to disk',
+      () async {
+    final path = await proceduralSfxPathFor(SoundEffect.woodCrack);
+
+    expect(path, isNotNull);
+    final file = File(path!);
+    expect(file.existsSync(), isTrue);
+    final onDiskBytes = await file.readAsBytes();
+    expect(onDiskBytes, proceduralSfxFor(SoundEffect.woodCrack));
+  });
+
+  test('proceduralSfxPathFor caches the same path across calls', () async {
+    final first = await proceduralSfxPathFor(SoundEffect.invalidMove);
+    final second = await proceduralSfxPathFor(SoundEffect.invalidMove);
+    expect(first, second);
+  });
+
+  test('proceduralSfxPathFor returns null for an effect with no recipe',
+      () async {
+    expect(await proceduralSfxPathFor(SoundEffect.woodMerge), isNull);
   });
 }

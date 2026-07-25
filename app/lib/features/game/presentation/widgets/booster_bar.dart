@@ -19,7 +19,6 @@ class BoosterBar extends StatelessWidget {
     required this.swapCharges,
     required this.singleCellRemoveCharges,
     required this.goldKeyCount,
-    required this.rotateArmed,
     required this.removalArmed,
     required this.onRotateTap,
     required this.onSwapTap,
@@ -32,7 +31,6 @@ class BoosterBar extends StatelessWidget {
   final int swapCharges;
   final int singleCellRemoveCharges;
   final int goldKeyCount;
-  final bool rotateArmed;
   final bool removalArmed;
   final VoidCallback onRotateTap;
   final VoidCallback onSwapTap;
@@ -44,12 +42,13 @@ class BoosterBar extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
+        // Rotate applies to the whole tray instantly on tap — no "arm and
+        // pick a piece" step, so it never shows an armed/active state.
         _BoosterButton(
           icon: PhosphorIconsBold.arrowsClockwise,
           label: 'Yön',
           charges: rotateCharges,
           canRefill: goldKeyCount > 0,
-          active: rotateArmed,
           onTap: rotateCharges > 0
               ? onRotateTap
               : (goldKeyCount > 0

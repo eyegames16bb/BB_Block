@@ -53,7 +53,7 @@ void main() {
 
   test('boosters: rotate/swap/removeCell each play a distinct SFX', () {
     expect(
-      soundEffectFor(const GameEvent.pieceRotated(trayIndex: 0)),
+      soundEffectFor(const GameEvent.trayRotated()),
       SoundEffect.pieceRotate,
     );
     expect(

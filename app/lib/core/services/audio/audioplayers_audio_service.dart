@@ -6,13 +6,16 @@ import 'package:bb_block/core/utils/app_logger.dart';
 
 /// Pools a handful of [AudioPlayer]s round-robin for overlapping one-shot
 /// SFX, and keeps a dedicated looping player for the ambient background
-/// track. Most gameplay SFX are synthesized in-memory by [proceduralSfxFor]
-/// (no licensed asset needed — see CLAUDE.md's Mixkit/Zapsplat concern) and
-/// played via `BytesSource`; anything without a procedural recipe falls
-/// back to `assets/audio/sfx/<effect>.mp3`, which isn't bundled yet. The
-/// ambient loop always uses `assets/audio/ambient/background_loop.mp3`,
-/// also not bundled. Every play call is wrapped so a missing asset logs
-/// instead of throwing.
+/// track. Most gameplay SFX are synthesized by [proceduralSfxPathFor] (no
+/// licensed asset needed — see CLAUDE.md's Mixkit/Zapsplat concern),
+/// written to a temp file, and played via `DeviceFileSource` — the same
+/// well-tested playback path every asset/URL source already uses, rather
+/// than `BytesSource` (a narrower, less-exercised code path in
+/// `audioplayers`; see `procedural_sfx.dart`). Anything without a
+/// procedural recipe falls back to `assets/audio/sfx/<effect>.mp3`, which
+/// isn't bundled yet. The ambient loop always uses
+/// `assets/audio/ambient/background_loop.mp3`, also not bundled. Every play
+/// call is wrapped so a missing asset logs instead of throwing.
 final class AudioPlayersAudioService implements AudioService {
   AudioPlayersAudioService({int concurrentEffectPlayers = 6})
       : _effectPlayers = List.generate(
@@ -44,11 +47,9 @@ final class AudioPlayersAudioService implements AudioService {
     try {
       await player.stop();
       await player.setVolume(_volume);
-      final proceduralBytes = proceduralSfxFor(effect);
-      if (proceduralBytes != null) {
-        await player.play(
-          BytesSource(proceduralBytes, mimeType: 'audio/wav'),
-        );
+      final proceduralPath = await proceduralSfxPathFor(effect);
+      if (proceduralPath != null) {
+        await player.play(DeviceFileSource(proceduralPath));
       } else {
         await player.play(AssetSource('audio/sfx/${effect.name}.mp3'));
       }

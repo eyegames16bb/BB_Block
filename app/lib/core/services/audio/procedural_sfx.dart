@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -27,6 +28,32 @@ Uint8List? proceduralSfxFor(SoundEffect effect) {
   final bytes = recipe();
   _cache[effect] = bytes;
   return bytes;
+}
+
+final _pathCache = <SoundEffect, String>{};
+
+/// Writes [effect]'s synthesized WAV to a temp file (once, then cached) and
+/// returns its path, or `null` if there's no recipe for it.
+///
+/// `AudioPlayersAudioService` plays this via `DeviceFileSource` rather than
+/// handing the raw bytes to `BytesSource` directly: `BytesSource` is a
+/// newer, far less exercised code path in `audioplayers` (it's explicitly
+/// unsupported in `LOW_LATENCY`/`SoundPool` mode on Android, for instance),
+/// whereas file playback is the same well-trodden path every asset/URL
+/// source already uses. Since the synthesis is deterministic, writing the
+/// same bytes to the same path every launch is harmless — no need to check
+/// whether the file already exists.
+Future<String?> proceduralSfxPathFor(SoundEffect effect) async {
+  final cachedPath = _pathCache[effect];
+  if (cachedPath != null) return cachedPath;
+
+  final bytes = proceduralSfxFor(effect);
+  if (bytes == null) return null;
+
+  final file = File('${Directory.systemTemp.path}/bb_block_sfx_${effect.name}.wav');
+  await file.writeAsBytes(bytes, flush: true);
+  _pathCache[effect] = file.path;
+  return file.path;
 }
 
 const _sampleRate = 22050;
@@ -265,7 +292,12 @@ Uint8List _render({
     final a = v.abs();
     if (a > peak) peak = a;
   }
-  final scale = peak > 1 ? 1 / peak : 1.0;
+  // Normalize *up* to a consistent target peak, not just down when
+  // clipping — a recipe with a single quiet layer (e.g. pieceRotate's lone
+  // sine at amplitude 0.3) would otherwise end up far quieter than one
+  // with several stacked layers, even though both should read as
+  // comparably "present" one-shot SFX.
+  final scale = peak > 0 ? 0.92 / peak : 1.0;
 
   final samples16 = Int16List(totalSamples);
   for (var i = 0; i < totalSamples; i++) {
