@@ -6,6 +6,7 @@ import 'package:bb_block/core/game_feel/screen_shake.dart';
 import 'package:bb_block/core/game_feel/spring_pressable.dart';
 import 'package:bb_block/core/providers/game_feel_providers.dart';
 import 'package:bb_block/core/theme/app_theme.dart';
+import 'package:bb_block/core/theme/glass_panel.dart';
 import 'package:bb_block/core/theme/wood_background.dart';
 import 'package:bb_block/features/game/application/game_controller.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
@@ -524,14 +525,19 @@ class _PauseOverlay extends StatelessWidget {
     return ColoredBox(
       color: Colors.black.withValues(alpha: 0.7),
       child: Center(
-        child: Card(
-          color: AppColors.navy,
-          margin: const EdgeInsets.all(32),
-          child: Padding(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: GlassPanel(
             padding: const EdgeInsets.all(28),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                const Icon(
+                  PhosphorIconsFill.pauseCircle,
+                  color: GamePalette.recordGold,
+                  size: 40,
+                ),
+                const SizedBox(height: 12),
                 Text(
                   'Duraklatıldı',
                   style: Theme.of(
@@ -539,11 +545,8 @@ class _PauseOverlay extends StatelessWidget {
                   ).textTheme.headlineSmall?.copyWith(color: AppColors.paper),
                 ),
                 const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: onResume,
-                  child: const Text('Devam Et'),
-                ),
-                const SizedBox(height: 8),
+                _OverlayPrimaryButton(label: 'Devam Et', onTap: onResume),
+                const SizedBox(height: 10),
                 TextButton(
                   onPressed: () => context.pop(),
                   child: const Text(
@@ -553,6 +556,50 @@ class _PauseOverlay extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The prominent action button shared by the pause and round-over
+/// overlays — a gold pill on `SpringPressable`, matching the rest of the
+/// HUD's wood-chrome family instead of the theme's default `FilledButton`.
+class _OverlayPrimaryButton extends StatelessWidget {
+  const _OverlayPrimaryButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SpringPressable(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [GamePalette.progressFillLight, GamePalette.recordGold],
+          ),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: GamePalette.recordGold.withValues(alpha: 0.4),
+              blurRadius: 14,
+            ),
+          ],
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: AppColors.ink,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ),
@@ -721,61 +768,69 @@ class _RoundOverlayState extends ConsumerState<_RoundOverlay> {
           children: [
             if (_isVictory) const _VictoryFlash(),
             Center(
-              child: Card(
-                color: AppColors.navy,
-                margin: const EdgeInsets.all(32),
-                shape: _isVictory
-                    ? RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(
-                          color: GamePalette.recordGold,
-                          width: 2,
-                        ),
-                      )
-                    : null,
-                child: Padding(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: GlassPanel(
                   padding: const EdgeInsets.all(28),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _title(session.outcome),
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
-                              color: _isVictory
-                                  ? GamePalette.recordGold
-                                  : AppColors.paper,
+                  opacity: _isVictory ? 0.5 : 0.55,
+                  child: DecoratedBox(
+                    decoration: _isVictory
+                        ? BoxDecoration(
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(
+                              color: GamePalette.recordGold,
+                              width: 2,
                             ),
-                      ),
-                      const SizedBox(height: 12),
-                      TweenAnimationBuilder<int>(
-                        tween: IntTween(begin: 0, end: session.score),
-                        duration: const Duration(milliseconds: 600),
-                        curve: Curves.easeOutCubic,
-                        builder: (context, value, _) => Text(
-                          'Skor: $value',
-                          style: const TextStyle(
-                            color: AppColors.paper,
-                            fontSize: 18,
+                          )
+                        : const BoxDecoration(),
+                    child: Padding(
+                      padding: _isVictory
+                          ? const EdgeInsets.all(6)
+                          : EdgeInsets.zero,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _title(session.outcome),
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
+                                  color: _isVictory
+                                      ? GamePalette.recordGold
+                                      : AppColors.paper,
+                                ),
                           ),
-                        ),
+                          const SizedBox(height: 12),
+                          TweenAnimationBuilder<int>(
+                            tween: IntTween(begin: 0, end: session.score),
+                            duration: const Duration(milliseconds: 600),
+                            curve: Curves.easeOutCubic,
+                            builder: (context, value, _) => Text(
+                              'Skor: $value',
+                              style: const TextStyle(
+                                color: AppColors.paper,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          _OverlayPrimaryButton(
+                            label: _buttonLabel(session.outcome),
+                            onTap: () => ref.invalidate(
+                              gameControllerProvider(config),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          TextButton(
+                            onPressed: () => context.pop(),
+                            child: const Text(
+                              'Ana Menü',
+                              style: TextStyle(color: AppColors.paper),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 24),
-                      FilledButton(
-                        onPressed: () =>
-                            ref.invalidate(gameControllerProvider(config)),
-                        child: Text(_buttonLabel(session.outcome)),
-                      ),
-                      const SizedBox(height: 8),
-                      TextButton(
-                        onPressed: () => context.pop(),
-                        child: const Text(
-                          'Ana Menü',
-                          style: TextStyle(color: AppColors.paper),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),

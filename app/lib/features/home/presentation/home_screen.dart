@@ -4,6 +4,7 @@ import 'package:bb_block/core/game_feel/spring_pressable.dart';
 import 'package:bb_block/core/providers/ads_providers.dart';
 import 'package:bb_block/core/routing/app_router.dart';
 import 'package:bb_block/core/theme/app_theme.dart';
+import 'package:bb_block/core/theme/glass_panel.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
 import 'package:bb_block/features/game/presentation/widgets/game_palette.dart';
 import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
@@ -29,6 +30,24 @@ class HomeScreen extends ConsumerWidget {
       body: Stack(
         children: [
           const Positioned.fill(child: _HomeBackground()),
+          // A light dark fade at the very top — just enough to keep the
+          // status bar icons legible over a busy photo, not to hide any
+          // of the artwork itself.
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 60,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.black45, Colors.transparent],
+                ),
+              ),
+            ),
+          ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -59,24 +78,15 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
+                  // No separate "BB Block" title here — the artwork
+                  // already carries its own large title graphic near the
+                  // top, and stacking our own text right under it read as
+                  // two competing titles. The best-score readout moves
+                  // down near the buttons instead of floating over the
+                  // character's face.
                   const Spacer(),
-                  Text(
-                    'BB Block',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                          color: AppColors.paper,
-                          shadows: const [
-                            Shadow(
-                              color: Colors.black87,
-                              blurRadius: 16,
-                              offset: Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                  ),
-                  const SizedBox(height: 14),
                   _BestScores(progress: progress),
-                  const Spacer(),
+                  const SizedBox(height: 16),
                   PremiumGameButton(
                     label: 'Level Mod',
                     icon: PhosphorIconsFill.mountains,
@@ -128,10 +138,7 @@ class HomeScreen extends ConsumerWidget {
   Future<void> _startClassic(BuildContext context) async {
     final hasFrame = await showModalBottomSheet<bool>(
       context: context,
-      backgroundColor: AppColors.navy,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) => const _FrameChoiceSheet(),
     );
     if (hasFrame == null || !context.mounted) return;
@@ -160,10 +167,7 @@ class HomeScreen extends ConsumerWidget {
     // `PlayerProgress`'s doc comment — nothing mid-round can change this).
     final useKey = await showModalBottomSheet<bool>(
       context: context,
-      backgroundColor: AppColors.navy,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) => _LevelStartSheet(goldKeyCount: goldKeyCount),
     );
     if (useKey == null || !context.mounted) return;
@@ -186,37 +190,29 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// The provided home screen artwork, cropped to hide its own baked-in
-/// "BEN BRICK BLOCKS" sign (a placeholder title from whatever prompt
-/// generated the art — this game is BB Block, not that). The image's
-/// aspect ratio is close enough to a modern phone screen's that a plain
-/// `BoxFit.cover` barely crops anything, so this deliberately over-scales
-/// the image (anchored to the bottom) and clips the overflow, pushing the
-/// sign off the top of the screen while keeping the mascot and scenery
-/// below it fully visible and anchored to the bottom edge.
+/// The provided home screen artwork, shown full-bleed and unzoomed — the
+/// user explicitly wants the whole scene visible, matching the original
+/// image, not a cropped-in close-up. Its aspect ratio is close enough to a
+/// modern phone screen's that plain `BoxFit.cover` barely crops anything
+/// on its own.
 class _HomeBackground extends StatelessWidget {
   const _HomeBackground();
 
   @override
   Widget build(BuildContext context) {
-    return ClipRect(
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Transform.scale(
-          scale: 1.75,
-          alignment: Alignment.bottomCenter,
-          child: Image.asset(
-            'assets/images/home_background.png',
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
-          ),
-        ),
-      ),
+    return Image.asset(
+      'assets/images/home_background.png',
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
     );
   }
 }
 
+/// A frosted-glass stat row instead of stacked plain text lines — three
+/// compact stat cells (framed best, frameless best, level) separated by
+/// thin dividers, sitting just above the mode buttons rather than floating
+/// mid-screen over the artwork.
 class _BestScores extends StatelessWidget {
   const _BestScores({required this.progress});
 
@@ -224,31 +220,88 @@ class _BestScores extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = TextStyle(
-      color: AppColors.paper.withValues(alpha: 0.9),
-      fontSize: 14,
-      fontWeight: FontWeight.w600,
-      shadows: const [Shadow(color: Colors.black87, blurRadius: 6)],
+    return GlassPanel(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+      borderRadius: 18,
+      opacity: 0.4,
+      child: Row(
+        children: [
+          Expanded(
+            child: _StatItem(
+              icon: PhosphorIconsFill.crown,
+              value: '${progress.classicHighScoreFramed}',
+              label: 'Çerçeveli',
+            ),
+          ),
+          const _StatDivider(),
+          Expanded(
+            child: _StatItem(
+              icon: PhosphorIconsFill.crown,
+              value: '${progress.classicHighScoreFrameless}',
+              label: 'Çerçevesiz',
+            ),
+          ),
+          const _StatDivider(),
+          Expanded(
+            child: _StatItem(
+              icon: PhosphorIconsFill.mountains,
+              value: '${progress.currentLevel}',
+              label: 'Level',
+            ),
+          ),
+        ],
+      ),
     );
+  }
+}
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.28),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('En İyi (Çerçeveli): ${progress.classicHighScoreFramed}',
-                style: style),
-            Text('En İyi (Çerçevesiz): ${progress.classicHighScoreFrameless}',
-                style: style),
-            Text('Level: ${progress.currentLevel}', style: style),
-          ],
+class _StatItem extends StatelessWidget {
+  const _StatItem({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: GamePalette.recordGold, size: 16),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            color: AppColors.paper,
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-      ),
+        Text(
+          label,
+          style: TextStyle(
+            color: AppColors.paper.withValues(alpha: 0.65),
+            fontSize: 11,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatDivider extends StatelessWidget {
+  const _StatDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 38,
+      color: Colors.white.withValues(alpha: 0.16),
     );
   }
 }
@@ -260,28 +313,29 @@ class _FrameChoiceSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Çerçeve',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(color: AppColors.paper),
-            ),
-            const SizedBox(height: 16),
-            _SheetChoiceButton(
-              label: 'Çerçeve Var (8x8)',
-              onTap: () => Navigator.of(context).pop(true),
-            ),
-            const SizedBox(height: 12),
-            _SheetChoiceButton(
-              label: 'Çerçeve Yok (10x10)',
-              onTap: () => Navigator.of(context).pop(false),
-            ),
-          ],
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: GlassPanel(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Çerçeve',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(color: AppColors.paper),
+              ),
+              const SizedBox(height: 16),
+              _SheetChoiceButton(
+                label: 'Çerçeve Var (8x8)',
+                onTap: () => Navigator.of(context).pop(true),
+              ),
+              const SizedBox(height: 12),
+              _SheetChoiceButton(
+                label: 'Çerçeve Yok (10x10)',
+                onTap: () => Navigator.of(context).pop(false),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -304,45 +358,46 @@ class _LevelStartSheet extends StatelessWidget {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Level Mod',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(color: AppColors.paper),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              '*1 adet altın anahtar ile oyuna başla ve bölümü '
-              'tamamlayıcılar ile oyna!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.paper.withValues(alpha: 0.75),
-                fontStyle: FontStyle.italic,
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: GlassPanel(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Level Mod',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(color: AppColors.paper),
               ),
-            ),
-            const SizedBox(height: 20),
-            _StartChoiceButton(
-              label: 'Altın Anahtar İle Oyuna Başla',
-              subtitle: canUseKey
-                  ? '$goldKeyCount Altın Anahtarın var'
-                  : 'Altın Anahtarın yok',
-              prominent: true,
-              onTap: canUseKey
-                  ? () => Navigator.of(context).pop(true)
-                  : null,
-            ),
-            const SizedBox(height: 12),
-            _StartChoiceButton(
-              label: 'Anahtarsız Oyuna Başla',
-              prominent: false,
-              onTap: () => Navigator.of(context).pop(false),
-            ),
-          ],
+              const SizedBox(height: 10),
+              Text(
+                '*1 adet altın anahtar ile oyuna başla ve bölümü '
+                'tamamlayıcılar ile oyna!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.paper.withValues(alpha: 0.75),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(height: 20),
+              _StartChoiceButton(
+                label: 'Altın Anahtar İle Oyuna Başla',
+                subtitle: canUseKey
+                    ? '$goldKeyCount Altın Anahtarın var'
+                    : 'Altın Anahtarın yok',
+                prominent: true,
+                onTap: canUseKey
+                    ? () => Navigator.of(context).pop(true)
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              _StartChoiceButton(
+                label: 'Anahtarsız Oyuna Başla',
+                prominent: false,
+                onTap: () => Navigator.of(context).pop(false),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -432,20 +487,25 @@ class _SheetChoiceButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: FilledButton(
-        style: FilledButton.styleFrom(
-          backgroundColor: AppColors.navy,
-          elevation: 4,
-          shadowColor: Colors.black54,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+    return SpringPressable(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 15),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: AppColors.paper,
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        onPressed: onTap,
-        child: Text(label, style: const TextStyle(fontSize: 18)),
       ),
     );
   }

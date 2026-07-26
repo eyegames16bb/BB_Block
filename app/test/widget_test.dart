@@ -20,11 +20,12 @@ void main() {
         child: const BbBlockApp(),
       );
 
-  testWidgets('home screen shows the game title and both mode buttons',
-      (tester) async {
+  testWidgets('home screen shows both mode buttons', (tester) async {
     await tester.pumpWidget(appWith(FakeAdsService()));
 
-    expect(find.text('BB Block'), findsOneWidget);
+    // No separate "BB Block" title text — the background artwork itself
+    // carries the game's branding (see home_screen.dart's _HomeBackground
+    // doc comment).
     expect(find.text('Klasik Mod'), findsOneWidget);
     expect(find.text('Level Mod'), findsOneWidget);
   });

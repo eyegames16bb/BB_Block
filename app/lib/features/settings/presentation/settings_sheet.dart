@@ -1,4 +1,6 @@
 import 'package:bb_block/core/theme/app_theme.dart';
+import 'package:bb_block/core/theme/glass_panel.dart';
+import 'package:bb_block/features/game/presentation/widgets/game_palette.dart';
 import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
 import 'package:bb_block/features/persistence/domain/player_progress.dart';
 import 'package:flutter/material.dart';
@@ -14,10 +16,7 @@ class SettingsSheet extends ConsumerWidget {
   static Future<void> show(BuildContext context) {
     return showModalBottomSheet<void>(
       context: context,
-      backgroundColor: AppColors.navy,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) => const SettingsSheet(),
     );
   }
@@ -26,46 +25,48 @@ class SettingsSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final progress =
         ref.watch(playerProgressControllerProvider).value ??
-            const PlayerProgress();
+        const PlayerProgress();
     final controller = ref.read(playerProgressControllerProvider.notifier);
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(PhosphorIcons.gear, color: AppColors.paper),
-                const SizedBox(width: 10),
-                Text(
-                  'Ayarlar',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(color: AppColors.paper),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _SettingToggle(
-              icon: PhosphorIcons.speakerHigh,
-              label: 'Ses',
-              value: progress.soundEnabled,
-              onChanged: (enabled) =>
-                  controller.setSoundEnabled(enabled: enabled),
-            ),
-            const SizedBox(height: 12),
-            _SettingToggle(
-              icon: PhosphorIcons.vibrate,
-              label: 'Titreşim',
-              value: progress.hapticsEnabled,
-              onChanged: (enabled) =>
-                  controller.setHapticsEnabled(enabled: enabled),
-            ),
-          ],
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: GlassPanel(
+          padding: const EdgeInsets.fromLTRB(22, 20, 22, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(PhosphorIconsBold.gear, color: AppColors.paper),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Ayarlar',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleLarge?.copyWith(color: AppColors.paper),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              _SettingToggle(
+                icon: PhosphorIconsBold.speakerHigh,
+                label: 'Ses',
+                value: progress.soundEnabled,
+                onChanged: (enabled) =>
+                    controller.setSoundEnabled(enabled: enabled),
+              ),
+              const SizedBox(height: 10),
+              _SettingToggle(
+                icon: PhosphorIconsBold.vibrate,
+                label: 'Titreşim',
+                value: progress.hapticsEnabled,
+                onChanged: (enabled) =>
+                    controller.setHapticsEnabled(enabled: enabled),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -87,22 +88,42 @@ class _SettingToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.paper.withValues(alpha: 0.85), size: 20),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(color: AppColors.paper, fontSize: 16),
-          ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: value
+                  ? GamePalette.recordGold
+                  : AppColors.paper.withValues(alpha: 0.55),
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.paper,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Switch(
+              value: value,
+              activeThumbColor: GamePalette.recordGold,
+              onChanged: onChanged,
+            ),
+          ],
         ),
-        Switch(
-          value: value,
-          activeThumbColor: AppColors.gold,
-          onChanged: onChanged,
-        ),
-      ],
+      ),
     );
   }
 }

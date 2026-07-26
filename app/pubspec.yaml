@@ -63,11 +63,16 @@ flutter_launcher_icons:
   image_path: "assets/icon/icon.png"
   android: true
   ios: true
-  # The source art already has soft rounded corners baked in (see
-  # CLAUDE.md) — Android's own adaptive-icon mask would double up on that,
-  # so this stays a plain (non-adaptive) icon on both platforms rather than
-  # configuring adaptive_icon_background/foreground.
   remove_alpha_ios: true
+  # Without these, modern Android launchers (Pixel, One UI, ...) treat a
+  # legacy-only icon as non-adaptive and auto-wrap it in their own mask on
+  # a plain white backdrop — that's the white border the user saw. Giving
+  # it a real adaptive background (a dark wood tone sampled from the icon
+  # itself, not white) and reusing the source art as the foreground fixes
+  # it, at the cost of the OS's mask cropping a modest safe-zone margin —
+  # standard for virtually every Android app icon.
+  adaptive_icon_background: "#2A160C"
+  adaptive_icon_foreground: "assets/icon/icon.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
