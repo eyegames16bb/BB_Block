@@ -4,6 +4,7 @@ import 'package:bb_block/features/board/domain/entities/cell_state.dart';
 import 'package:bb_block/features/board/domain/entities/grid_position.dart';
 import 'package:bb_block/features/board/domain/services/placement_validator.dart';
 import 'package:bb_block/features/game/presentation/widgets/game_palette.dart';
+import 'package:bb_block/features/game/presentation/widgets/place_sequence.dart';
 import 'package:bb_block/features/game/presentation/widgets/wood_dust_effect.dart';
 import 'package:bb_block/features/game/presentation/widgets/wood_tile.dart';
 import 'package:bb_block/features/game_engine/domain/tray_piece.dart';
@@ -40,7 +41,6 @@ class BoardGrid extends StatefulWidget {
 
 class _BoardGridState extends State<BoardGrid> {
   static const PlacementValidator _validator = DefaultPlacementValidator();
-  static const Duration _fillPopDuration = Duration(milliseconds: 260);
   static const Duration _clearBreakDuration = Duration(milliseconds: 480);
   static const Duration _frameBreakDuration = Duration(milliseconds: 650);
 
@@ -93,6 +93,22 @@ class _BoardGridState extends State<BoardGrid> {
         }
       }
     }
+  }
+
+  /// The "Block Place" Game Feel sequence's final beat — see
+  /// `place_sequence.dart`'s doc comment for the full chain. Fired by
+  /// `PlaceSequence` itself once its hit-freeze hold ends, not from the
+  /// board diff directly, so the sparks land exactly on that beat instead
+  /// of at the instant the cell became filled.
+  void _burstSparkleAt(GridPosition position) {
+    _newtonKey.currentState?.addEffect(
+      placementSparkle(
+        origin: Offset(
+          (position.column + 0.5) / widget.board.size,
+          (position.row + 0.5) / widget.board.size,
+        ),
+      ),
+    );
   }
 
   /// Fires a small wood-chip particle burst at [position] via the `Newton`
@@ -248,16 +264,10 @@ class _BoardGridState extends State<BoardGrid> {
   Widget _baseCell(GridPosition position, CellState state, double cellSize) {
     switch (state) {
       case CellState.filled:
-        return TweenAnimationBuilder<double>(
-          key: ValueKey(
-            'fill-$position-${_fillGeneration[position] ?? 0}',
-          ),
-          tween: Tween(begin: 0.5, end: 1),
-          duration: _fillPopDuration,
-          curve: Curves.elasticOut,
-          builder: (context, scale, child) =>
-              Transform.scale(scale: scale, child: child),
-          child: WoodTile(size: cellSize),
+        return PlaceSequence(
+          key: ValueKey('fill-$position-${_fillGeneration[position] ?? 0}'),
+          cellSize: cellSize,
+          onSparkle: () => _burstSparkleAt(position),
         );
       case CellState.frame:
         return WoodTile(size: cellSize, isFrame: true);

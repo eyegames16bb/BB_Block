@@ -7,7 +7,7 @@ import 'package:bb_block/core/game_feel/spring_pressable.dart';
 import 'package:bb_block/core/providers/game_feel_providers.dart';
 import 'package:bb_block/core/theme/app_theme.dart';
 import 'package:bb_block/core/theme/glass_panel.dart';
-import 'package:bb_block/core/theme/wood_background.dart';
+import 'package:bb_block/core/theme/image_background.dart';
 import 'package:bb_block/features/game/application/game_controller.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
 import 'package:bb_block/features/game/presentation/widgets/board_grid.dart';
@@ -90,7 +90,8 @@ class _GameScreenState extends ConsumerState<GameScreen>
     // afterwards, since the engine is only built once per round).
     if (config.mode == GameModeType.level && !progressAsync.hasValue) {
       return const Scaffold(
-        body: WoodBackground(
+        body: ImageBackground(
+          assetPath: 'assets/images/game_background.png',
           child: Center(
             child: CircularProgressIndicator(color: AppColors.paper),
           ),
@@ -112,7 +113,8 @@ class _GameScreenState extends ConsumerState<GameScreen>
     });
 
     return Scaffold(
-      body: WoodBackground(
+      body: ImageBackground(
+        assetPath: 'assets/images/game_background.png',
         child: SafeArea(
           child: Stack(
             children: [

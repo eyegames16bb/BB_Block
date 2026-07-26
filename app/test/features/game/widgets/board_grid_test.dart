@@ -4,10 +4,11 @@
 // whether any effect is active. That means `pumpAndSettle()` never
 // terminates here (it waits for zero scheduled frames, which never happens)
 // — every settle below is a bounded `pump(duration)` instead, long enough
-// to run any of this file's animations (longest is the 520ms frame
-// teardown) to completion in one shot.
+// to run any of this file's animations (longest is the ~1s "Block Place"
+// Game Feel sequence, see place_sequence.dart) to completion in one shot.
 import 'package:bb_block/features/board/domain/entities/piece_shape.dart';
 import 'package:bb_block/features/game/presentation/widgets/board_grid.dart';
+import 'package:bb_block/features/game/presentation/widgets/place_sequence.dart';
 import 'package:bb_block/features/game/presentation/widgets/wood_tile.dart';
 import 'package:bb_block/features/game_engine/domain/tray_piece.dart';
 import 'package:flutter/material.dart';
@@ -106,7 +107,7 @@ void main() {
       ),
     );
 
-    expect(find.byType(TweenAnimationBuilder<double>), findsOneWidget);
+    expect(find.byType(PlaceSequence), findsOneWidget);
   });
 
   testWidgets(
