@@ -17,7 +17,14 @@ import 'package:bb_block/core/utils/app_logger.dart';
 /// `assets/audio/ambient/background_loop.mp3`, also not bundled. Every play
 /// call is wrapped so a missing asset logs instead of throwing.
 final class AudioPlayersAudioService implements AudioService {
-  AudioPlayersAudioService({int concurrentEffectPlayers = 6})
+  // Bumped from 6 (user instruction: increase the channel count as part of
+  // investigating the background-audio-interruption bug) — a busy turn
+  // (placement + line-clear + combo/star bonus layered sounds, all fired
+  // within the same frame via `FeedbackOrchestrator`) can legitimately want
+  // more than a couple of these active at once; a deeper pool means a
+  // later effect is less likely to `.stop()` an still-playing earlier one
+  // just to reuse its channel.
+  AudioPlayersAudioService({int concurrentEffectPlayers = 12})
       : _effectPlayers = List.generate(
           concurrentEffectPlayers,
           (_) => AudioPlayer(),
@@ -33,7 +40,43 @@ final class AudioPlayersAudioService implements AudioService {
 
   @override
   Future<void> init() async {
-    await _ambientPlayer.setReleaseMode(ReleaseMode.loop);
+    // Bug fix (user report, marked critical: turning sound on stops/
+    // interrupts whatever background audio — music from another app — was
+    // already playing). audioplayers' default `AudioContext` requests
+    // *exclusive* audio focus on Android (`AndroidAudioFocus.gain`) and a
+    // non-mixing session category on iOS, so simply playing our first SFX
+    // silences the rest of the device. `AndroidAudioFocus.none` never
+    // requests focus at all, and iOS's `ambient` category mixes with other
+    // apps' audio by design — both let our short one-shot SFX/ambient loop
+    // layer on top of whatever else is already playing instead of
+    // stopping it.
+    //
+    // The *authoritative* copy of this same call now lives in `main()`,
+    // deliberately run before `runApp` — this repeat here is a defensive
+    // fallback in case `AudioPlayersAudioService` is ever constructed
+    // through a path that skipped `main()` (there isn't one today, but the
+    // cost of being wrong about that is a silenced background track, so
+    // the redundancy — `setAudioContext` is idempotent — is worth it.
+    //
+    // Wrapped like every other platform call below: in a headless test
+    // environment (no real platform channel behind audioplayers) this
+    // throws, and since `init()` is fired via `unawaited()` from
+    // `audioServiceProvider`, an uncaught throw here surfaced as a stray
+    // async error landing in whatever *later* test happened to be running
+    // when the Future rejected — not the test that actually triggered it.
+    try {
+      await AudioPlayer.global.setAudioContext(
+        AudioContext(
+          android: const AudioContextAndroid(
+            audioFocus: AndroidAudioFocus.none,
+          ),
+          iOS: AudioContextIOS(category: AVAudioSessionCategory.ambient),
+        ),
+      );
+      await _ambientPlayer.setReleaseMode(ReleaseMode.loop);
+    } on Object catch (error) {
+      appLogger.w('Could not configure audio session: $error');
+    }
   }
 
   @override

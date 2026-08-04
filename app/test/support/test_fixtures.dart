@@ -81,11 +81,19 @@ class FakeModeStrategy implements GameModeStrategy {
           : const RoundOutcome.classicGameOver();
 }
 
+/// Mirrors the *old* flat "rate × lineCount" model regardless of
+/// `lineCount` — good enough for engine-orchestration tests, which don't
+/// care about the real scoring tables, just that the engine wires whatever
+/// the strategy returns through correctly.
 class _FixedScoring implements ScoringStrategy {
   const _FixedScoring(this.pointsPerLine);
 
   final int pointsPerLine;
 
   @override
-  int pointsPerClearedLine({required int scoreBeforeClear}) => pointsPerLine;
+  int pointsForClear({required int lineCount, required int scoreBeforeClear}) =>
+      lineCount * pointsPerLine;
+
+  @override
+  int comboBonusPoints({required int scoreBeforeClear}) => 0;
 }

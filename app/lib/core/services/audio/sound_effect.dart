@@ -5,6 +5,7 @@ enum SoundEffect {
   pieceDrag,
   pieceDrop,
   pieceSnap,
+  blockPlace,
   pieceRotate,
   invalidMove,
   lineComplete,

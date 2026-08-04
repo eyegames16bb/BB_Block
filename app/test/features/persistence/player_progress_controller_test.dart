@@ -104,15 +104,20 @@ void main() {
 
     final progress = container.read(playerProgressControllerProvider).value!;
     expect(progress.currentLevel, 1 + GoldKeyConstants.levelsPerGoldKeyReward);
-    expect(progress.goldKeyCount, GoldKeyConstants.startingGoldKeyCount + 1);
+    expect(
+      progress.goldKeyCount,
+      GoldKeyConstants.startingGoldKeyCount +
+          GoldKeyConstants.milestoneBonusCoins,
+    );
 
-    // A second full cycle grants a second key.
+    // A second full cycle grants a second bonus.
     for (var i = 0; i < GoldKeyConstants.levelsPerGoldKeyReward; i++) {
       await controller.advanceLevel();
     }
     expect(
       container.read(playerProgressControllerProvider).value!.goldKeyCount,
-      GoldKeyConstants.startingGoldKeyCount + 2,
+      GoldKeyConstants.startingGoldKeyCount +
+          GoldKeyConstants.milestoneBonusCoins * 2,
     );
   });
 
@@ -127,15 +132,18 @@ void main() {
 
     expect(
       container.read(playerProgressControllerProvider).value!.goldKeyCount,
-      GoldKeyConstants.startingGoldKeyCount + 2,
+      GoldKeyConstants.startingGoldKeyCount +
+          GoldKeyConstants.rewardedAdCoins * 2,
     );
   });
 
   test(
-      'spendGoldKeyForBoosters succeeds and decrements the Gold Key count',
+      'spendGoldKeyForBoosters succeeds and decrements the Gold Coin count',
       () async {
     final container = containerWith(
-      FakeGameSaveRepository(const PlayerProgress(goldKeyCount: 1)),
+      FakeGameSaveRepository(
+        const PlayerProgress(goldKeyCount: GoldKeyConstants.actionCostCoins),
+      ),
     );
     await container.read(playerProgressControllerProvider.future);
     final controller =
@@ -155,14 +163,18 @@ void main() {
       'mutation (regression for a same-stale-state double-tap race)',
       () async {
     final container = containerWith(
-      FakeGameSaveRepository(const PlayerProgress(goldKeyCount: 2)),
+      FakeGameSaveRepository(
+        const PlayerProgress(
+          goldKeyCount: GoldKeyConstants.actionCostCoins * 2,
+        ),
+      ),
     );
     await container.read(playerProgressControllerProvider.future);
     final controller =
         container.read(playerProgressControllerProvider.notifier);
 
     // Deliberately not awaited individually — this is exactly what a fast
-    // double-tap on the start sheet's key button would produce: both calls
+    // double-tap on the start sheet's button would produce: both calls
     // start before either write has landed.
     final first = controller.spendGoldKeyForBoosters();
     final second = controller.spendGoldKeyForBoosters();
@@ -176,7 +188,7 @@ void main() {
 
   test(
       'spendGoldKeyForBoosters fails and leaves the count untouched with '
-      'zero keys', () async {
+      'zero coins', () async {
     final container = containerWith(
       FakeGameSaveRepository(const PlayerProgress(goldKeyCount: 0)),
     );
@@ -191,5 +203,52 @@ void main() {
       container.read(playerProgressControllerProvider).value!.goldKeyCount,
       0,
     );
+  });
+
+  test(
+      'spendGoldKeyForBoosters fails when the balance is nonzero but still '
+      'under the action cost', () async {
+    final container = containerWith(
+      FakeGameSaveRepository(
+        const PlayerProgress(
+          goldKeyCount: GoldKeyConstants.actionCostCoins - 1,
+        ),
+      ),
+    );
+    await container.read(playerProgressControllerProvider.future);
+    final controller =
+        container.read(playerProgressControllerProvider.notifier);
+
+    final spent = await controller.spendGoldKeyForBoosters();
+
+    expect(spent, isFalse);
+    expect(
+      container.read(playerProgressControllerProvider).value!.goldKeyCount,
+      GoldKeyConstants.actionCostCoins - 1,
+    );
+  });
+
+  test(
+      'setPendingLevelChoice locks in the choice for that level, and '
+      'advanceLevel clears it (user instruction: no re-asking mid-attempt, '
+      'but a fresh level asks again)', () async {
+    final container = containerWith(FakeGameSaveRepository());
+    await container.read(playerProgressControllerProvider.future);
+    final controller =
+        container.read(playerProgressControllerProvider.notifier);
+
+    await controller.setPendingLevelChoice(level: 1, boostersUnlocked: true);
+
+    var progress = container.read(playerProgressControllerProvider).value!;
+    expect(progress.pendingLevelChoiceLevel, 1);
+    expect(progress.pendingLevelBoostersUnlocked, isTrue);
+
+    // Failing/retrying the same level must not touch the lock — only
+    // advancing does.
+    await controller.advanceLevel();
+
+    progress = container.read(playerProgressControllerProvider).value!;
+    expect(progress.currentLevel, 2);
+    expect(progress.pendingLevelChoiceLevel, isNull);
   });
 }

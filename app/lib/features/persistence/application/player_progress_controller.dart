@@ -58,6 +58,16 @@ class PlayerProgressController extends _$PlayerProgressController {
         },
       );
 
+  Future<void> completeTutorial() => _serialized(() async {
+        final current = state.value ?? const PlayerProgress();
+        await _persist(current.copyWith(tutorialCompleted: true));
+      });
+
+  Future<void> setLanguageCode(String languageCode) => _serialized(() async {
+        final current = state.value ?? const PlayerProgress();
+        await _persist(current.copyWith(languageCode: languageCode));
+      });
+
   Future<void> recordClassicScore({
     required bool hasFrame,
     required int score,
@@ -78,9 +88,9 @@ class PlayerProgressController extends _$PlayerProgressController {
 
   /// Advances to the next level and, every
   /// [GoldKeyConstants.levelsPerGoldKeyReward] completed levels, grants a
-  /// free Gold Key — a milestone bonus on top of the ad-based way to earn
-  /// them. `currentLevel` starts at 1, so the number of levels *completed*
-  /// so far is `newLevel - 1`.
+  /// free [GoldKeyConstants.milestoneBonusCoins] — a milestone bonus on top
+  /// of the ad-based way to earn them. `currentLevel` starts at 1, so the
+  /// number of levels *completed* so far is `newLevel - 1`.
   Future<void> advanceLevel() => _serialized(() async {
         final current = state.value ?? const PlayerProgress();
         final newLevel = current.currentLevel + 1;
@@ -91,34 +101,77 @@ class PlayerProgressController extends _$PlayerProgressController {
           current.copyWith(
             currentLevel: newLevel,
             goldKeyCount: earnsGoldKey
-                ? current.goldKeyCount + 1
+                ? current.goldKeyCount + GoldKeyConstants.milestoneBonusCoins
                 : current.goldKeyCount,
+            // The level just finished — its locked-in choice no longer
+            // applies to anything; the next level's start sheet must ask
+            // again.
+            pendingLevelChoiceLevel: null,
           ),
         );
       });
 
-  /// Rewarded-ad payout. The actual ad SDK isn't wired up yet (see
+  /// Locks in the player's Gold Key choice for the Level Mode attempt at
+  /// [level] — already resolved (a key was spent or wasn't) by the caller.
+  /// `HomeScreen._startLevel` checks `pendingLevelChoiceLevel == currentLevel`
+  /// before showing the start sheet at all, so a retry after failing the
+  /// same level reuses this without re-asking or re-spending.
+  Future<void> setPendingLevelChoice({
+    required int level,
+    required bool boostersUnlocked,
+  }) =>
+      _serialized(() async {
+        final current = state.value ?? const PlayerProgress();
+        await _persist(
+          current.copyWith(
+            pendingLevelChoiceLevel: level,
+            pendingLevelBoostersUnlocked: boostersUnlocked,
+          ),
+        );
+      });
+
+  /// Rewarded-ad payout — [GoldKeyConstants.rewardedAdCoins] (user
+  /// instruction). The actual ad SDK isn't wired up yet (see
   /// `AdMobAdsService`) — callers currently invoke this the moment a
   /// simulated ad view completes.
   Future<void> grantGoldKey() => _serialized(() async {
         final current = state.value ?? const PlayerProgress();
         await _persist(
-          current.copyWith(goldKeyCount: current.goldKeyCount + 1),
+          current.copyWith(
+            goldKeyCount:
+                current.goldKeyCount + GoldKeyConstants.rewardedAdCoins,
+          ),
         );
       });
 
-  /// Spends one Gold Key to unlock boosters for the Level Mode round about
-  /// to start (one charge of each — see `GameLaunchConfig.
-  /// levelBoostersUnlocked` and `PlayerProgress`'s doc comment). Returns
-  /// whether it succeeded; the caller must not start the round as
-  /// "unlocked" on `false`. Serialized like every other mutator here so two
-  /// rapid taps can't both read the same pre-spend `goldKeyCount` and both
-  /// succeed off a single key.
-  Future<bool> spendGoldKeyForBoosters() => _serialized(() async {
+  /// Spends [GoldKeyConstants.actionCostCoins] to unlock boosters for the
+  /// Level Mode round about to start (one charge of each — see
+  /// `GameLaunchConfig.levelBoostersUnlocked` and `PlayerProgress`'s doc
+  /// comment). Returns whether it succeeded; the caller must not start the
+  /// round as "unlocked" on `false`.
+  Future<bool> spendGoldKeyForBoosters() => _spendGoldKey();
+
+  /// Spends [GoldKeyConstants.actionCostCoins] to revive a Classic Mode
+  /// round that just ended in "no valid move" (user instruction) — a
+  /// separate, differently-named entry point onto the same underlying
+  /// spend so each call site's intent stays self-documenting, even though
+  /// the mechanics are identical.
+  Future<bool> spendGoldKeyToContinueRound() => _spendGoldKey();
+
+  /// Returns whether it succeeded; the caller must not proceed on `false`.
+  /// Serialized like every other mutator here so two rapid taps can't both
+  /// read the same pre-spend `goldKeyCount` and both succeed off a single
+  /// spend's worth of coins.
+  Future<bool> _spendGoldKey() => _serialized(() async {
         final current = state.value ?? const PlayerProgress();
-        if (current.goldKeyCount <= 0) return false;
+        if (current.goldKeyCount < GoldKeyConstants.actionCostCoins) {
+          return false;
+        }
         await _persist(
-          current.copyWith(goldKeyCount: current.goldKeyCount - 1),
+          current.copyWith(
+            goldKeyCount:
+                current.goldKeyCount - GoldKeyConstants.actionCostCoins,
+          ),
         );
         return true;
       });

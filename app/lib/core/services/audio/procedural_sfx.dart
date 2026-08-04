@@ -111,6 +111,25 @@ final Map<SoundEffect, Uint8List Function()> _recipes = {
           ),
         ],
       ),
+  // A new, richer placement thud (user instruction: replace the old
+  // pieceSnap+pieceDrop pairing with a single, more satisfying sound) — a
+  // low wood-body thump, a short mid-range "knock" for definition, and a
+  // brief impact crackle, all in one recipe instead of two thin, near-
+  // identical tones layered together.
+  SoundEffect.blockPlace: () => _render(
+        totalDuration: 0.12,
+        layers: const [
+          _Layer(start: 0, duration: 0.1, frequency: 100, amplitude: 0.65),
+          _Layer(start: 0, duration: 0.045, frequency: 340, amplitude: 0.35),
+          _Layer(
+            start: 0,
+            duration: 0.025,
+            frequency: 0,
+            type: _WaveType.noise,
+            amplitude: 0.3,
+          ),
+        ],
+      ),
   SoundEffect.pieceRotate: () => _render(
         totalDuration: 0.05,
         layers: const [

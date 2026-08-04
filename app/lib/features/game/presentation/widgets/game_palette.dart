@@ -7,8 +7,12 @@ import 'package:flutter/widgets.dart';
 /// reference mockup this HUD was redesigned to match "birebir" — see
 /// CLAUDE.md) rather than eyeballed off the screenshot.
 abstract final class GamePalette {
-  /// `.grid-container` background — the dark recessed well the cells sit in.
-  static const Color boardBackground = Color(0xFF3A1E0B);
+  /// `.board-wrapper` background — the dark recessed well the cells sit in.
+  /// Re-sampled from the newer `BB_Block_OyunİçiArayüz.png` reference/CSS
+  /// (a fresh "block + board texture" pass, user instruction) — very close
+  /// to the previous value, but this one is the deliberate source of truth
+  /// now.
+  static const Color boardBackground = Color(0xFF3B2416);
 
   /// `.grid-container`'s own border — darker than [boardBackground] itself,
   /// since the grid now sits directly on the game-container's gradient (see
@@ -17,10 +21,18 @@ abstract final class GamePalette {
 
   /// `.cell` background — visibly lighter than [boardBackground] so empty
   /// cells read as individual recessed slots, not a flat dark field.
-  static const Color emptySlot = Color(0xFF4A2810);
+  static const Color emptySlot = Color(0xFF4A2D1C);
 
-  static const Color placedBlock = Color(0xFFDCAA6C);
+  /// `.cell.filled`'s `linear-gradient(135deg, #f0c88f, #d8a959)` — a placed
+  /// tile is now a diagonal amber gradient instead of a flat fill, matching
+  /// the newer reference image/CSS.
+  static const Color placedBlockGradientStart = Color(0xFFF0C88F);
+  static const Color placedBlockGradientEnd = Color(0xFFD8A959);
   static const Color placedBlockEdge = Color(0xFFA1723D);
+
+  /// `.cell.filled`'s glow — `box-shadow: 0 0 8px rgba(255, 215, 102, 0.4)` —
+  /// a soft permanent amber halo around every placed (non-frame) tile.
+  static const Color placedBlockGlow = Color(0x66FFD766);
 
   /// A soft highlight along a placed/frame tile's top-left, simulating a
   /// raised bevel — mirrors the piece art's lighter top face in the
@@ -65,4 +77,32 @@ abstract final class GamePalette {
   static const Color progressTrack = Color(0xFF321808);
 
   static const double draggingSlotOpacity = 0.3;
+
+  /// A FIXED physical distance above the raw finger the dragged piece
+  /// floats (user instruction, explicitly "0.4 inch", explicitly *not*
+  /// scaled by board/cell size like the previous cell-multiplier approach
+  /// was) — every screen gets the same real-world gap regardless of how
+  /// big its cells render. There's no cross-platform Flutter API for
+  /// *true* physical PPI without native platform code; `logicalPixelsPerInch`
+  /// below uses the same 160-logical-px-per-inch convention Flutter's own
+  /// logical pixel is modeled after (mirroring Android's density-
+  /// independent pixel, whose reference density is 160dpi) — the standard
+  /// approximation used throughout the Flutter ecosystem for this kind of
+  /// physical-size calculation.
+  static const double dragLiftInches = 0.4;
+  static const double logicalPixelsPerInch = 160;
+  static const double dragLiftPixels = dragLiftInches * logicalPixelsPerInch;
+
+  /// A tray piece with no valid spot anywhere on the board right now (user
+  /// instruction) — dimmed enough to read as "not currently placeable" at
+  /// a glance, but not so faint it looks disabled/unavailable, since it's
+  /// still fully draggable.
+  static const double unplaceablePieceOpacity = 0.4;
+
+  /// A bold, saturated yellow flash for the row/column that just completed
+  /// a line (user instruction) — deliberately more vivid than [recordGold]
+  /// (which reads as a warm amber "premium" tone) so a completing line
+  /// unmistakably reads as *this just cleared*, not just another gold
+  /// accent in the HUD.
+  static const Color lineClearHighlight = Color(0xFFFFE600);
 }

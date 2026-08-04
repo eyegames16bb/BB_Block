@@ -13,19 +13,21 @@ void main() {
     );
   });
 
-  test('placing a piece is a light selection tick', () {
+  test('placing a piece is a medium impact (user instruction — Placement '
+      'Feedback)', () {
     expect(
       hapticIntensityFor(const GameEvent.piecePlaced(placementPoints: 1)),
-      HapticIntensity.selection,
+      HapticIntensity.medium,
     );
   });
 
-  test('a single cleared line is medium, two or more is heavy', () {
+  test('a cleared line is a heavy impact, single or multi (user '
+      'instruction)', () {
     expect(
       hapticIntensityFor(
         const GameEvent.linesCleared(rows: [0], columns: [], linePoints: 9),
       ),
-      HapticIntensity.medium,
+      HapticIntensity.heavy,
     );
     expect(
       hapticIntensityFor(

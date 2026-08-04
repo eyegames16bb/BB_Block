@@ -1,9 +1,10 @@
 import 'package:bb_block/core/services/haptics/haptics_service.dart';
 
-/// Records triggered pulses instead of touching the `vibration` platform
-/// channel, which isn't available under `flutter test`.
+/// Records triggered pulses instead of touching the real `HapticFeedback`
+/// platform channel, which isn't available under `flutter test`.
 class FakeHapticsService implements HapticsService {
   final List<HapticIntensity> triggered = [];
+  bool muted = false;
 
   @override
   Future<void> trigger(HapticIntensity intensity) async {
@@ -11,5 +12,5 @@ class FakeHapticsService implements HapticsService {
   }
 
   @override
-  void setMuted({required bool muted}) {}
+  void setMuted({required bool muted}) => this.muted = muted;
 }

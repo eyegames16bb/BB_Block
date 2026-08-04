@@ -4,6 +4,8 @@ import 'package:bb_block/features/board/domain/entities/grid_position.dart';
 import 'package:bb_block/features/board/domain/entities/piece_shape.dart';
 import 'package:bb_block/features/game_engine/domain/game_engine.dart';
 import 'package:bb_block/features/game_engine/domain/game_event.dart';
+import 'package:bb_block/features/game_engine/domain/tray_piece.dart';
+import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
 import 'package:bb_block/features/game_mode/domain/round_outcome.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -412,6 +414,195 @@ void main() {
 
       expect(second, [const GameEvent.invalidMove()]);
       expect(engine.session.tray[0].shape, shapeAfterFirstRotate);
+    });
+  });
+
+  group('Level Mode star bonus', () {
+    test(
+        'a fresh Level Mode session rolls exactly one star target — a row '
+        'XOR a column, never both, within the interior (not the border)',
+        () {
+      final engine = GameEngine(
+        mode: FakeModeStrategy(
+          initialBoard: Board.framed(),
+          type: GameModeType.level,
+        ),
+        generator: ScriptedPieceGenerator([List.filled(3, single)]),
+      );
+
+      final row = engine.session.starTargetRow;
+      final column = engine.session.starTargetColumn;
+
+      expect(row == null, !(column == null));
+      final target = row ?? column!;
+      expect(target, greaterThanOrEqualTo(1));
+      expect(target, lessThanOrEqualTo(8));
+    });
+
+    test('Classic Mode never gets a star target', () {
+      final engine = engineOn(Board.framed());
+
+      expect(engine.session.starTargetRow, isNull);
+      expect(engine.session.starTargetColumn, isNull);
+    });
+
+    test(
+        'completing the star-marked row grants the flat star bonus on top '
+        'of normal scoring', () {
+      final board = boardFromRows(['...', 'XX.', '...']);
+      final engine = GameEngine(
+        mode: FakeModeStrategy(
+          initialBoard: board,
+          type: GameModeType.level,
+        ),
+        generator: ScriptedPieceGenerator([List.filled(3, single)]),
+        initialBoard: board,
+        initialTray: [TrayPiece(shape: single)],
+        initialStarTargetRow: 1,
+      );
+
+      final events = engine.placePiece(
+        trayIndex: 0,
+        anchor: const GridPosition(row: 1, column: 2),
+      );
+
+      // FakeModeStrategy's default pointsPerLine (10) * 1 line + the 250
+      // star bonus, on top of the 1-point placement itself.
+      expect(engine.session.score, 1 + 10 + 250);
+      expect(
+        events,
+        contains(
+          const GameEvent.linesCleared(
+            rows: [1],
+            columns: [],
+            linePoints: 260,
+            starBonus: true,
+          ),
+        ),
+      );
+      // One-time bonus (revised user instruction): the target is cleared
+      // the instant it's earned, both so it can never fire again this
+      // round and so `BoardGrid` knows to animate the star icons away.
+      expect(engine.session.starTargetRow, isNull);
+      expect(engine.session.starTargetColumn, isNull);
+    });
+
+    test(
+        'a second completion of the same row, after the star bonus was '
+        'already earned once, awards no further bonus (user instruction: '
+        'one-time only)', () {
+      final board = boardFromRows(['...', 'XX.', '...']);
+      final triomino = shapeById(PieceShapeId.triominoLineHorizontal);
+      final engine = GameEngine(
+        mode: FakeModeStrategy(
+          initialBoard: board,
+          type: GameModeType.level,
+        ),
+        generator: ScriptedPieceGenerator([
+          [triomino],
+        ]),
+        initialBoard: board,
+        initialTray: [TrayPiece(shape: single)],
+        initialStarTargetRow: 1,
+      );
+
+      engine.placePiece(
+        trayIndex: 0,
+        anchor: const GridPosition(row: 1, column: 2),
+      );
+      final scoreAfterFirstBonus = engine.session.score;
+      expect(scoreAfterFirstBonus, 1 + 10 + 250);
+
+      // The refill hands back a horizontal 3-line piece (scripted above) —
+      // placed across all of row 1 (empty again after the first clear),
+      // completing it a second time in one move.
+      final secondEvents = engine.placePiece(
+        trayIndex: 0,
+        anchor: const GridPosition(row: 1, column: 0),
+      );
+
+      // Only the ordinary 3-cell placement + 10-point line score this
+      // time, no +250.
+      expect(engine.session.score, scoreAfterFirstBonus + 3 + 10);
+      expect(
+        secondEvents,
+        contains(
+          const GameEvent.linesCleared(
+            rows: [1],
+            columns: [],
+            linePoints: 10,
+          ),
+        ),
+      );
+    });
+
+    test(
+        'completing a line that is *not* the star-marked one earns no bonus',
+        () {
+      final board = boardFromRows(['XX.', '...', '...']);
+      final engine = GameEngine(
+        mode: FakeModeStrategy(
+          initialBoard: board,
+          type: GameModeType.level,
+        ),
+        generator: ScriptedPieceGenerator([List.filled(3, single)]),
+        initialBoard: board,
+        initialTray: [TrayPiece(shape: single)],
+        // The star target is row 1 — this placement completes row 0
+        // instead.
+        initialStarTargetRow: 1,
+      );
+
+      final events = engine.placePiece(
+        trayIndex: 0,
+        anchor: const GridPosition(row: 0, column: 2),
+      );
+
+      expect(engine.session.score, 1 + 10);
+      expect(
+        events,
+        contains(
+          const GameEvent.linesCleared(
+            rows: [0],
+            columns: [],
+            linePoints: 10,
+          ),
+        ),
+      );
+    });
+
+    test(
+        'completing the star-marked column (not row) also grants the bonus',
+        () {
+      final board = boardFromRows(['.X.', '.X.', '...']);
+      final engine = GameEngine(
+        mode: FakeModeStrategy(
+          initialBoard: board,
+          type: GameModeType.level,
+        ),
+        generator: ScriptedPieceGenerator([List.filled(3, single)]),
+        initialBoard: board,
+        initialTray: [TrayPiece(shape: single)],
+        initialStarTargetColumn: 1,
+      );
+
+      final events = engine.placePiece(
+        trayIndex: 0,
+        anchor: const GridPosition(row: 2, column: 1),
+      );
+
+      expect(engine.session.score, 1 + 10 + 250);
+      expect(
+        events,
+        contains(
+          const GameEvent.linesCleared(
+            rows: [],
+            columns: [1],
+            linePoints: 260,
+            starBonus: true,
+          ),
+        ),
+      );
     });
   });
 }

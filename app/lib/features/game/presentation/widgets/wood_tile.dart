@@ -16,7 +16,6 @@ class WoodTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final face = isFrame ? GamePalette.frameBlock : GamePalette.placedBlock;
     final edge =
         isFrame ? GamePalette.frameBlockEdge : GamePalette.placedBlockEdge;
 
@@ -24,12 +23,34 @@ class WoodTile extends StatelessWidget {
       padding: EdgeInsets.all(size * 0.05),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: face,
+          color: isFrame ? GamePalette.frameBlock : null,
+          // Placed (non-frame) tiles are a diagonal amber gradient with a
+          // permanent soft glow — `.cell.filled`'s
+          // `linear-gradient(135deg, ...)` + glowing `box-shadow` from the
+          // newer reference image/CSS. The frame keeps its flat fill.
+          gradient: isFrame
+              ? null
+              : const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    GamePalette.placedBlockGradientStart,
+                    GamePalette.placedBlockGradientEnd,
+                  ],
+                ),
           borderRadius: BorderRadius.circular(size * 0.16),
           border: Border(
             bottom: BorderSide(color: edge, width: size * 0.1),
             right: BorderSide(color: edge, width: size * 0.1),
           ),
+          boxShadow: isFrame
+              ? null
+              : [
+                  BoxShadow(
+                    color: GamePalette.placedBlockGlow,
+                    blurRadius: size * 0.2,
+                  ),
+                ],
         ),
         // A soft top-left highlight so the tile reads as a raised chip
         // rather than a flat painted square, matching the beveled piece art

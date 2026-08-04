@@ -9,7 +9,13 @@ import 'package:bb_block/features/game_mode/domain/round_outcome.dart';
 /// primary and secondary effect are ordinary [SoundEffect]s played through
 /// the same pooled players, just started together.
 SoundEffect? secondarySoundEffectFor(GameEvent event) => switch (event) {
-      GameEventPiecePlaced() => SoundEffect.pieceDrop,
+      // blockPlace (see game_audio.dart) is a single self-sufficient
+      // recipe now — no secondary layer needed under it.
+      GameEventPiecePlaced() => null,
+      // The star bonus (user instruction) gets its own distinct layer
+      // regardless of line count — a single-line star clear should still
+      // read as a bigger moment than an ordinary single-line clear.
+      GameEventLinesCleared(starBonus: true) => SoundEffect.goldenKey,
       GameEventLinesCleared(:final rows, :final columns) =>
         (rows.length + columns.length) >= 2
             ? SoundEffect.woodExplosion
@@ -23,7 +29,10 @@ SoundEffect? secondarySoundEffectFor(GameEvent event) => switch (event) {
           RoundOutcomeOngoing() =>
             null,
         },
-      GameEventInvalidMove() ||
+      // A hollow "empty wood tap" layered under the primary invalidMove
+      // tone (user instruction: "Invalid Placement" — a rejected drop
+      // should read as knocking on solid wood, not just an error beep).
+      GameEventInvalidMove() => SoundEffect.woodHit,
       GameEventTrayRefilled() ||
       GameEventTrayRotated() ||
       GameEventCellRemoved() =>
@@ -37,6 +46,8 @@ SoundEffect? secondarySoundEffectFor(GameEvent event) => switch (event) {
 /// sallanmalı" for bigger multi-clears).
 double? screenShakeMagnitudeFor(GameEvent event) => switch (event) {
       GameEventPiecePlaced() => 1.5,
+      GameEventLinesCleared(starBonus: true, :final rows, :final columns) =>
+        6 + (rows.length + columns.length - 1) * 2.5,
       GameEventLinesCleared(:final rows, :final columns) =>
         3 + (rows.length + columns.length - 1) * 2.5,
       GameEventFrameDestroyed() => 9,

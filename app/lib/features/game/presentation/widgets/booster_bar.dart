@@ -1,6 +1,7 @@
 import 'package:bb_block/core/game_feel/spring_pressable.dart';
 import 'package:bb_block/core/theme/app_theme.dart';
 import 'package:bb_block/features/game/presentation/widgets/game_palette.dart';
+import 'package:bb_block/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
 
@@ -36,6 +37,7 @@ class BoosterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
@@ -43,19 +45,19 @@ class BoosterBar extends StatelessWidget {
         // pick a piece" step, so it never shows an armed/active state.
         _BoosterButton(
           icon: PhosphorIconsBold.arrowsClockwise,
-          label: 'Yön',
+          label: l10n.boosterRotate,
           charges: rotateCharges,
           onTap: rotateCharges > 0 ? onRotateTap : null,
         ),
         _BoosterButton(
           icon: PhosphorIconsBold.swap,
-          label: 'Değiştir',
+          label: l10n.boosterSwap,
           charges: swapCharges,
           onTap: swapCharges > 0 ? onSwapTap : null,
         ),
         _BoosterButton(
           icon: PhosphorIconsBold.bomb,
-          label: 'Sil',
+          label: l10n.boosterErase,
           charges: singleCellRemoveCharges,
           active: removalArmed,
           onTap: singleCellRemoveCharges > 0 ? onRemovalTap : null,

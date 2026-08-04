@@ -1,8 +1,25 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// EYE GAMES — Release signing (bkz. android/key.properties, asla Git'e eklenmez).
+// Dosya yoksa (ör. key.properties'i henüz almamış bir CI/geliştirici ortamı)
+// `hasReleaseSigning` false kalır: debug build'ler bundan tamamen etkilenmeden
+// çalışmaya devam eder, release signingConfig'i ise hiç OLUŞTURULMAZ — Gradle
+// bu durumda release build'i debug key'e SESSİZCE düşürmek yerine imzasız
+// bırakır (bkz. buildTypes.release aşağıda), böylece kazara debug-imzalı bir
+// release artifact üretilmesi mimari olarak imkansız hale gelir.
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties()
+val hasReleaseSigning = keystorePropertiesFile.exists()
+if (hasReleaseSigning) {
+    FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
 }
 
 android {
@@ -30,11 +47,27 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // EYE GAMES upload-key ile imzalanır — debug signing'e ASLA
+            // düşülmez. key.properties/keystore mevcut değilse bu build type
+            // imzasız kalır (release/bundleRelease başarısız olur), Play
+            // Store'a debug-imzalı bir artifact gitmesi hiçbir koşulda
+            // mümkün değildir.
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 }

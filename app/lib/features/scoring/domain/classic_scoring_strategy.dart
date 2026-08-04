@@ -7,7 +7,16 @@ final class ClassicScoringStrategy implements ScoringStrategy {
   final bool hasFrame;
 
   @override
-  int pointsPerClearedLine({required int scoreBeforeClear}) => hasFrame
-      ? ScoringConstants.classicFramedLineScore
-      : ScoringConstants.classicFramelessLineScore;
+  int pointsForClear({required int lineCount, required int scoreBeforeClear}) {
+    final table = hasFrame
+        ? ScoringConstants.standardClearPoints
+        : ScoringConstants.classicFramelessClearPoints;
+    final index = lineCount.clamp(0, table.length - 1);
+    return table[index];
+  }
+
+  @override
+  int comboBonusPoints({required int scoreBeforeClear}) => hasFrame
+      ? ScoringConstants.standardComboBonus
+      : ScoringConstants.classicFramelessComboBonus;
 }

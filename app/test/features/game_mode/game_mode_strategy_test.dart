@@ -1,3 +1,5 @@
+import 'package:bb_block/features/board/domain/entities/cell_state.dart';
+import 'package:bb_block/features/board/domain/entities/grid_position.dart';
 import 'package:bb_block/features/game_mode/domain/classic_mode_strategy.dart';
 import 'package:bb_block/features/game_mode/domain/level_mode_strategy.dart';
 import 'package:bb_block/features/game_mode/domain/round_outcome.dart';
@@ -11,6 +13,29 @@ void main() {
           isTrue);
       expect(ClassicModeStrategy(hasFrame: false).createInitialBoard().hasFrame,
           isFalse);
+    });
+
+    test(
+        'the framed board is a 10x10 grid with an 8x8 interior — not a '
+        'separately-sized smaller board', () {
+      final board = ClassicModeStrategy(hasFrame: true).createInitialBoard();
+
+      expect(board.size, 10);
+      // Every border cell is frame, every interior cell is empty — an 8x8
+      // playable area inside the 10x10 grid.
+      for (var row = 0; row < board.size; row++) {
+        for (var column = 0; column < board.size; column++) {
+          final position = GridPosition(row: row, column: column);
+          final isBorder = row == 0 ||
+              row == board.size - 1 ||
+              column == 0 ||
+              column == board.size - 1;
+          expect(
+            board.cellAt(position),
+            isBorder ? CellState.frame : CellState.empty,
+          );
+        }
+      }
     });
 
     test('never removes its frame, whatever the score', () {
@@ -39,9 +64,9 @@ void main() {
       expect(strategy.createInitialBoard().hasFrame, isTrue);
     });
 
-    test('removes the frame at and after 900 points', () {
-      expect(strategy.shouldRemoveFrameAt(899), isFalse);
-      expect(strategy.shouldRemoveFrameAt(900), isTrue);
+    test('removes the frame at and after 750 points', () {
+      expect(strategy.shouldRemoveFrameAt(749), isFalse);
+      expect(strategy.shouldRemoveFrameAt(750), isTrue);
     });
 
     test('completes at 1000 points regardless of remaining moves', () {

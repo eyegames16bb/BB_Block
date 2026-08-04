@@ -48,6 +48,10 @@ app.*.map.json
 *.g.dart
 *.freezed.dart
 
+# Generated code (flutter gen-l10n)
+lib/l10n/app_localizations*.dart
+untranslated.txt
+
 # Signing & backend secrets — never commit these
 /android/key.properties
 *.jks

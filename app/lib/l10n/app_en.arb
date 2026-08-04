@@ -1,0 +1,59 @@
+{
+  "@@locale": "en",
+
+  "rewardedAdChip": "Rewarded Ad",
+  "adNotReady": "Ad isn't ready yet, try again shortly.",
+  "classicModeButton": "Classic Mode",
+  "statFramed": "Framed",
+  "statFrameless": "Frameless",
+  "statLevel": "Level",
+
+  "goldKeySheetTitle": "Gold Coin",
+  "goldKeyCurrentBalance": "Current Gold Coins",
+  "goldKeyMilestoneInfo": "Earn +100 Gold Coins every {perCycle} levels",
+  "goldKeyMilestoneProgress": "{intoCycle} / {perCycle} levels completed — {remaining} levels until your next coins",
+
+  "frameSheetTitle": "Frame",
+  "frameChoiceWithFrame": "With Frame (8x8)",
+  "frameChoiceWithoutFrame": "No Frame (10x10)",
+
+  "levelSheetTitle": "Level Mode",
+  "levelSheetHint": "*Complete a Line Between the Two Stars and Earn +250 Points!",
+  "startWithBoostersPrefix": "Play with Boosters (100",
+  "startWithKeySubtitleHave": "You have {count} Gold Coins",
+  "startWithKeySubtitleNone": "Not enough Gold Coins",
+
+  "settingsTitle": "Settings",
+  "soundLabel": "Sound",
+  "languageLabel": "Language",
+  "aboutSectionTitle": "About",
+  "publisherCreditLabel": "Publisher",
+  "replayTutorialLabel": "Replay Tutorial",
+
+  "boosterRotate": "Rotate",
+  "boosterSwap": "Swap",
+  "boosterErase": "Erase",
+
+  "goldKeyFooterLabel": "Coin",
+  "pausedTitle": "Paused",
+  "resumeButton": "Resume",
+  "mainMenuButton": "Main Menu",
+  "levelLabel": "Level {level}",
+  "scoreLabel": "Score: {value}",
+  "levelCompleteTitle": "Level Complete!",
+  "levelFailedTitle": "Level Failed",
+  "classicGameOverTitle": "Game Over",
+  "playAgainButton": "Play Again",
+  "continueWithCoinsPrefix": "Continue (100",
+
+  "adSkipHint": "Please wait to close the ad",
+  "adCloseButton": "Close",
+  "rateUsTitle": "Rate Us!",
+  "rateUsBody": "Enjoying BB Block? Your rating means a lot to us.",
+  "rateUsSubmit": "Submit",
+  "rateUsSkip": "Skip",
+  "rateUsThanks": "Thank you!",
+
+  "tutorialReplayStarting": "Starting tutorial…",
+  "tutorialSkip": "Skip"
+}

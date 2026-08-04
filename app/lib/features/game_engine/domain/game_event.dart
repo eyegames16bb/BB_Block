@@ -22,16 +22,24 @@ sealed class GameEvent with _$GameEvent {
 
   /// One or more full lines cleared in the same move. [rows]/[columns] carry
   /// the cleared indices so the UI can animate exactly those lines.
+  /// [starBonus] is true when this clear included Level Mode's star-marked
+  /// row/column (see `LevelModeConstants.starLineBonus`) — [linePoints]
+  /// already has that bonus folded in; this flag is purely for feedback
+  /// (a distinct sound/haptic), not a second source of points. The star
+  /// bonus is one-time per round (user instruction) — `GameEngine` clears
+  /// the star target the instant this fires `true`, so it's structurally
+  /// impossible for a later clear to set it `true` again this round.
   const factory GameEvent.linesCleared({
     required List<int> rows,
     required List<int> columns,
     required int linePoints,
+    @Default(false) bool starBonus,
   }) = GameEventLinesCleared;
 
   /// The tray emptied and was refilled with a fresh batch.
   const factory GameEvent.trayRefilled() = GameEventTrayRefilled;
 
-  /// Level Mode passed 900 points and the border frame was torn down.
+  /// Level Mode passed 750 points and the border frame was torn down.
   const factory GameEvent.frameDestroyed() = GameEventFrameDestroyed;
 
   /// Every unused tray piece was rotated 90° by the Rotate booster — it

@@ -13,10 +13,10 @@ void main() {
     );
   });
 
-  test('placing a piece plays the snap SFX', () {
+  test('placing a piece plays the blockPlace SFX', () {
     expect(
       soundEffectFor(const GameEvent.piecePlaced(placementPoints: 1)),
-      SoundEffect.pieceSnap,
+      SoundEffect.blockPlace,
     );
   });
 

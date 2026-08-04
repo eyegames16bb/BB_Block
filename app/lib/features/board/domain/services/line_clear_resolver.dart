@@ -22,7 +22,7 @@ abstract interface class LineClearResolver {
 /// Only cells in [CellState.filled] are ever cleared. A line made entirely of
 /// [CellState.frame] cells (the untouched border) is never reported as
 /// completed — frame teardown is a separate, explicit event (see Level Mode's
-/// 900-point Frame Destroy rule), not a byproduct of ordinary line clearing.
+/// 750-point Frame Destroy rule), not a byproduct of ordinary line clearing.
 final class DefaultLineClearResolver implements LineClearResolver {
   const DefaultLineClearResolver();
 

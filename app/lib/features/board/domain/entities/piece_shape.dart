@@ -49,6 +49,13 @@ abstract class PieceShape with _$PieceShape {
   int get cellCount => cells.length;
 }
 
+/// Piece weight rationale: user instruction — squares, 2/3/4-cell straight
+/// line pieces ("çizgi çubuklar"), and the corner-shaped 3-cell pieces
+/// ("üçgen", the closest analogue to a triangle in a polyomino set — the
+/// L-tromino shapes) should each appear "a notch" more often. Every shape
+/// in one of those three categories gets a flat +2 [PieceShape.baseWeight]
+/// bump over its previous value; every other shape (the tetromino/pentomino
+/// families) is unchanged.
 abstract final class PieceShapeCatalog {
   static const List<PieceShape> all = [
     PieceShape(
@@ -62,7 +69,7 @@ abstract final class PieceShapeCatalog {
         GridPosition(row: 0, column: 0),
         GridPosition(row: 0, column: 1),
       ],
-      baseWeight: 8,
+      baseWeight: 10,
     ),
     PieceShape(
       id: PieceShapeId.dominoVertical,
@@ -70,7 +77,7 @@ abstract final class PieceShapeCatalog {
         GridPosition(row: 0, column: 0),
         GridPosition(row: 1, column: 0),
       ],
-      baseWeight: 8,
+      baseWeight: 10,
     ),
     PieceShape(
       id: PieceShapeId.triominoLineHorizontal,
@@ -79,7 +86,7 @@ abstract final class PieceShapeCatalog {
         GridPosition(row: 0, column: 1),
         GridPosition(row: 0, column: 2),
       ],
-      baseWeight: 6,
+      baseWeight: 8,
     ),
     PieceShape(
       id: PieceShapeId.triominoLineVertical,
@@ -88,7 +95,7 @@ abstract final class PieceShapeCatalog {
         GridPosition(row: 1, column: 0),
         GridPosition(row: 2, column: 0),
       ],
-      baseWeight: 6,
+      baseWeight: 8,
     ),
     PieceShape(
       id: PieceShapeId.lTriomino0,
@@ -97,7 +104,7 @@ abstract final class PieceShapeCatalog {
         GridPosition(row: 1, column: 0),
         GridPosition(row: 1, column: 1),
       ],
-      baseWeight: 5,
+      baseWeight: 7,
     ),
     PieceShape(
       id: PieceShapeId.lTriomino90,
@@ -106,7 +113,7 @@ abstract final class PieceShapeCatalog {
         GridPosition(row: 0, column: 1),
         GridPosition(row: 1, column: 0),
       ],
-      baseWeight: 5,
+      baseWeight: 7,
     ),
     PieceShape(
       id: PieceShapeId.lTriomino180,
@@ -115,7 +122,7 @@ abstract final class PieceShapeCatalog {
         GridPosition(row: 0, column: 1),
         GridPosition(row: 1, column: 1),
       ],
-      baseWeight: 5,
+      baseWeight: 7,
     ),
     PieceShape(
       id: PieceShapeId.lTriomino270,
@@ -124,7 +131,7 @@ abstract final class PieceShapeCatalog {
         GridPosition(row: 1, column: 0),
         GridPosition(row: 1, column: 1),
       ],
-      baseWeight: 5,
+      baseWeight: 7,
     ),
     PieceShape(
       id: PieceShapeId.square,
@@ -134,7 +141,7 @@ abstract final class PieceShapeCatalog {
         GridPosition(row: 1, column: 0),
         GridPosition(row: 1, column: 1),
       ],
-      baseWeight: 5,
+      baseWeight: 7,
     ),
     PieceShape(
       id: PieceShapeId.tetrominoLineHorizontal,
@@ -144,7 +151,7 @@ abstract final class PieceShapeCatalog {
         GridPosition(row: 0, column: 2),
         GridPosition(row: 0, column: 3),
       ],
-      baseWeight: 3,
+      baseWeight: 5,
     ),
     PieceShape(
       id: PieceShapeId.tetrominoLineVertical,
@@ -154,7 +161,7 @@ abstract final class PieceShapeCatalog {
         GridPosition(row: 2, column: 0),
         GridPosition(row: 3, column: 0),
       ],
-      baseWeight: 3,
+      baseWeight: 5,
     ),
     PieceShape(
       id: PieceShapeId.lTetromino0,

@@ -1,3 +1,6 @@
+import 'dart:math';
+
+import 'package:bb_block/core/constants/app_constants.dart';
 import 'package:bb_block/features/board/domain/entities/board.dart';
 import 'package:bb_block/features/board/domain/entities/grid_position.dart';
 import 'package:bb_block/features/board/domain/services/line_clear_resolver.dart';
@@ -40,6 +43,14 @@ class GameEngine {
     SingleCellRemoveCommand singleCellRemoveCommand =
         const SingleCellRemoveCommand(),
     SwapPiecesCommand? swapCommand,
+    DateTime Function()? clock,
+    Random? random,
+    Board? initialBoard,
+    List<TrayPiece>? initialTray,
+    int initialScore = 0,
+    bool initialFrameRemoved = false,
+    int? initialStarTargetRow,
+    int? initialStarTargetColumn,
   })  : _mode = mode,
         _generator = generator,
         _initialRotateCharges = initialRotateCharges,
@@ -51,8 +62,28 @@ class GameEngine {
             lineClearResolver ?? const DefaultLineClearResolver(),
         _rotateCommand = rotateCommand,
         _singleCellRemoveCommand = singleCellRemoveCommand,
-        _swapCommand = swapCommand ?? SwapPiecesCommand() {
-    _session = _createInitialSession();
+        _swapCommand = swapCommand ?? SwapPiecesCommand(),
+        _clock = clock ?? DateTime.now,
+        _random = random ?? Random() {
+    _session = initialBoard != null && initialTray != null
+        ? GameSession(
+            board: initialBoard,
+            tray: initialTray,
+            score: initialScore,
+            mode: _mode.type,
+            outcome: _mode.evaluateOutcome(
+              currentScore: initialScore,
+              hasAnyValidPlacement:
+                  _hasAnyPlaceableTrayPiece(initialBoard, initialTray),
+            ),
+            frameRemoved: initialFrameRemoved,
+            rotateCharges: initialRotateCharges,
+            swapCharges: initialSwapCharges,
+            singleCellRemoveCharges: initialSingleCellRemoveCharges,
+            starTargetRow: initialStarTargetRow,
+            starTargetColumn: initialStarTargetColumn,
+          )
+        : _createInitialSession();
   }
 
   final GameModeStrategy _mode;
@@ -65,6 +96,20 @@ class GameEngine {
   final RotatePieceCommand _rotateCommand;
   final SingleCellRemoveCommand _singleCellRemoveCommand;
   final SwapPiecesCommand _swapCommand;
+  final Random _random;
+
+  /// Injectable so combo-window tests can fake elapsed time instead of
+  /// depending on real wall-clock delays.
+  final DateTime Function() _clock;
+
+  /// When the most recent line-clear happened — `null` before the first
+  /// one this session. A later clear within
+  /// `ScoringConstants.comboWindow` of this moment earns the mode's combo
+  /// bonus (see `placePiece`). Deliberately in-memory only, not part of
+  /// `GameSession`/persistence: losing the combo window across an app
+  /// restart is an acceptable, unnoticeable trade-off for not having to
+  /// serialize a wall-clock timestamp.
+  DateTime? _lastClearAt;
 
   late GameSession _session;
 
@@ -72,6 +117,11 @@ class GameEngine {
 
   GameSession _createInitialSession() {
     final board = _mode.createInitialBoard();
+    // Only Level Mode has star frame points at all (Classic Mode's frame,
+    // when present, is purely decorative/permanent — see decision #4 in
+    // CLAUDE.md).
+    final starTarget =
+        _mode.type == GameModeType.level ? _rollStarTarget(board.size) : null;
     return GameSession(
       board: board,
       tray: _freshTray(board),
@@ -81,7 +131,20 @@ class GameEngine {
       rotateCharges: _initialRotateCharges,
       swapCharges: _initialSwapCharges,
       singleCellRemoveCharges: _initialSingleCellRemoveCharges,
+      starTargetRow: starTarget?.$1,
+      starTargetColumn: starTarget?.$2,
     );
+  }
+
+  /// Picks a random *interior* row XOR column (never both — user
+  /// instruction: "2 opposite frame points" mark a single line) to mark
+  /// with the star frame points, re-rolled once per level. Rows/columns 0
+  /// and `size - 1` are excluded: they're pure frame with no fillable
+  /// cells of their own, so a star there could never actually be
+  /// completed.
+  (int?, int?) _rollStarTarget(int size) {
+    final index = 1 + _random.nextInt(size - 2);
+    return _random.nextBool() ? (index, null) : (null, index);
   }
 
   List<TrayPiece> _freshTray(Board board) => [
@@ -116,10 +179,37 @@ class GameEngine {
     var score = _session.score + piece.shape.cellCount;
     events.add(GameEvent.piecePlaced(placementPoints: piece.shape.cellCount));
 
+    // User instruction (revised): the star bonus is a *one-time* reward per
+    // round now, not a recurring one — the moment it's earned, the star
+    // target is cleared so it can never trigger again this round, and
+    // `BoardGrid` reacts to that same transition by animating the two star
+    // icons away (see its own doc comment) while the frame itself stays
+    // completely untouched — ordinary frame-teardown rules keep applying
+    // exactly as before.
+    var starConsumed = false;
+
     final cleared = _lineClearResolver.findCompletedLines(board);
     if (!cleared.isEmpty) {
-      final linePoints = cleared.lineCount *
-          _mode.scoringStrategy.pointsPerClearedLine(scoreBeforeClear: score);
+      final now = _clock();
+      final withinComboWindow = _lastClearAt != null &&
+          now.difference(_lastClearAt!) <= ScoringConstants.comboWindow;
+      final basePoints = _mode.scoringStrategy.pointsForClear(
+        lineCount: cleared.lineCount,
+        scoreBeforeClear: score,
+      );
+      final comboBonus = withinComboWindow
+          ? _mode.scoringStrategy.comboBonusPoints(scoreBeforeClear: score)
+          : 0;
+      final completedStarLine = (_session.starTargetRow != null &&
+              cleared.rows.contains(_session.starTargetRow)) ||
+          (_session.starTargetColumn != null &&
+              cleared.columns.contains(_session.starTargetColumn));
+      final starBonus =
+          completedStarLine ? LevelModeConstants.starLineBonus : 0;
+      final linePoints = basePoints + comboBonus + starBonus;
+      _lastClearAt = now;
+      starConsumed = completedStarLine;
+
       board = _lineClearResolver.clearLines(board, cleared);
       score += linePoints;
       events.add(
@@ -127,6 +217,7 @@ class GameEngine {
           rows: cleared.rows,
           columns: cleared.columns,
           linePoints: linePoints,
+          starBonus: completedStarLine,
         ),
       );
     }
@@ -162,6 +253,8 @@ class GameEngine {
       score: score,
       outcome: outcome,
       frameRemoved: frameRemoved,
+      starTargetRow: starConsumed ? null : _session.starTargetRow,
+      starTargetColumn: starConsumed ? null : _session.starTargetColumn,
     );
     return events;
   }
@@ -232,6 +325,27 @@ class GameEngine {
       GameEvent.cellRemoved(position: position),
       ..._reevaluateOutcome(),
     ];
+  }
+
+  /// Classic Mode only: revives a round that just ended in
+  /// `RoundOutcomeClassicGameOver` by drawing a brand-new tray batch — the
+  /// same "first piece is guaranteed to fit somewhere" logic every batch
+  /// draw already relies on (see `WeightedPieceGenerator`), so this always
+  /// hands back a playable board unless it's genuinely fully packed. Score
+  /// and board are untouched; `GameController` is what actually spends the
+  /// Gold Key that gates this.
+  List<GameEvent> continueRoundWithFreshTray() {
+    if (_session.outcome is! RoundOutcomeClassicGameOver) {
+      return const [GameEvent.invalidMove()];
+    }
+
+    final tray = _freshTray(_session.board);
+    final outcome = _mode.evaluateOutcome(
+      currentScore: _session.score,
+      hasAnyValidPlacement: _hasAnyPlaceableTrayPiece(_session.board, tray),
+    );
+    _session = _session.copyWith(tray: tray, outcome: outcome);
+    return [const GameEvent.trayRefilled()];
   }
 
   List<GameEvent> _reevaluateOutcome() {

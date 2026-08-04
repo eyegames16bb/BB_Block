@@ -7,7 +7,10 @@ import 'package:bb_block/features/game_mode/domain/round_outcome.dart';
 /// Riverpod-free, and independently unit-testable.
 SoundEffect? soundEffectFor(GameEvent event) => switch (event) {
       GameEventInvalidMove() => SoundEffect.invalidMove,
-      GameEventPiecePlaced() => SoundEffect.pieceSnap,
+      // A single new placement sound (user instruction) replaces the old
+      // pieceSnap primary + pieceDrop secondary layering — see
+      // procedural_sfx.dart's blockPlace recipe.
+      GameEventPiecePlaced() => SoundEffect.blockPlace,
       GameEventLinesCleared(:final rows, :final columns) =>
         (rows.length + columns.length) >= 2
             ? SoundEffect.multipleLineComplete

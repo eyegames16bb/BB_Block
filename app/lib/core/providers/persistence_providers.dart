@@ -1,5 +1,7 @@
 import 'package:bb_block/features/persistence/data/local_game_save_repository.dart';
+import 'package:bb_block/features/persistence/data/local_round_save_repository.dart';
 import 'package:bb_block/features/persistence/domain/game_save_repository.dart';
+import 'package:bb_block/features/persistence/domain/round_save_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,4 +18,11 @@ final sharedPreferencesProvider = Provider<SharedPreferences>(
 /// (Supabase, later) is a single change here.
 final gameSaveRepositoryProvider = Provider<GameSaveRepository>(
   (ref) => LocalGameSaveRepository(ref.watch(sharedPreferencesProvider)),
+);
+
+/// Separate from [gameSaveRepositoryProvider]: this one tracks the round
+/// currently in progress (see [RoundSaveRepository]'s doc comment for why
+/// it's synchronous), not account-level player progress.
+final roundSaveRepositoryProvider = Provider<RoundSaveRepository>(
+  (ref) => LocalRoundSaveRepository(ref.watch(sharedPreferencesProvider)),
 );

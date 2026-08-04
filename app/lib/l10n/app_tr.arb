@@ -1,0 +1,78 @@
+{
+  "@@locale": "tr",
+
+  "rewardedAdChip": "Ödüllü Reklam",
+  "adNotReady": "Reklam henüz hazır değil, birazdan tekrar deneyin.",
+  "classicModeButton": "Klasik Mod",
+  "statFramed": "Çerçeveli",
+  "statFrameless": "Çerçevesiz",
+  "statLevel": "Level",
+
+  "goldKeySheetTitle": "Altın Coin",
+  "goldKeyCurrentBalance": "Mevcut Altın Coin",
+  "goldKeyMilestoneInfo": "Her {perCycle} Level'de +100 Altın Coin kazanılır",
+  "@goldKeyMilestoneInfo": {
+    "placeholders": { "perCycle": { "type": "int" } }
+  },
+  "goldKeyMilestoneProgress": "{intoCycle} / {perCycle} level tamamlandı — {remaining} level sonra yeni coin",
+  "@goldKeyMilestoneProgress": {
+    "placeholders": {
+      "intoCycle": { "type": "int" },
+      "perCycle": { "type": "int" },
+      "remaining": { "type": "int" }
+    }
+  },
+
+  "frameSheetTitle": "Çerçeve",
+  "frameChoiceWithFrame": "Çerçeve Var (8x8)",
+  "frameChoiceWithoutFrame": "Çerçeve Yok (10x10)",
+
+  "levelSheetTitle": "Level Mod",
+  "levelSheetHint": "*İki Yıldız Arasında Tamamlama Yap ve +250 Puan Kazan!",
+  "startWithBoostersPrefix": "Tamamlayıcılar İle Oyna (100",
+  "startWithKeySubtitleHave": "{count} Altın Coin'in var",
+  "@startWithKeySubtitleHave": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "startWithKeySubtitleNone": "Yeterli Altın Coin'in yok",
+
+  "settingsTitle": "Ayarlar",
+  "soundLabel": "Ses",
+  "languageLabel": "Dil",
+  "aboutSectionTitle": "Hakkında",
+  "publisherCreditLabel": "Oyun Yayın ve Firması",
+  "replayTutorialLabel": "Öğreticiyi Tekrar Oynat",
+
+  "boosterRotate": "Yön",
+  "boosterSwap": "Değiştir",
+  "boosterErase": "Sil",
+
+  "goldKeyFooterLabel": "Coin",
+  "pausedTitle": "Duraklatıldı",
+  "resumeButton": "Devam Et",
+  "mainMenuButton": "Ana Menü",
+  "levelLabel": "Level {level}",
+  "@levelLabel": {
+    "placeholders": { "level": { "type": "int" } }
+  },
+  "scoreLabel": "Skor: {value}",
+  "@scoreLabel": {
+    "placeholders": { "value": { "type": "int" } }
+  },
+  "levelCompleteTitle": "Bölüm Tamamlandı!",
+  "levelFailedTitle": "Bölüm Başarısız",
+  "classicGameOverTitle": "Oyun Bitti",
+  "playAgainButton": "Tekrar Oyna",
+  "continueWithCoinsPrefix": "Devam Et (100",
+
+  "adSkipHint": "Reklamı kapatmak için bekleyin",
+  "adCloseButton": "Kapat",
+  "rateUsTitle": "Bizi Değerlendirin!",
+  "rateUsBody": "BB Block'u beğendiniz mi? Puanınız bizim için çok değerli.",
+  "rateUsSubmit": "Gönder",
+  "rateUsSkip": "Geç",
+  "rateUsThanks": "Teşekkürler!",
+
+  "tutorialReplayStarting": "Öğretici başlıyor…",
+  "tutorialSkip": "Atla"
+}

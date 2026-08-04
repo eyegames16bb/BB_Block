@@ -58,7 +58,7 @@ abstract class Board with _$Board {
   }
 
   /// Converts every [CellState.frame] cell back to [CellState.empty] — the
-  /// Level Mode frame teardown at 900 points. Filled cells are untouched.
+  /// Level Mode frame teardown at 750 points. Filled cells are untouched.
   Board withFrameRemoved() {
     final updatedCells = [
       for (final cell in cells)

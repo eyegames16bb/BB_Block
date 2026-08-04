@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:bb_block/core/constants/app_constants.dart';
 import 'package:bb_block/core/game_feel/screen_shake.dart';
@@ -21,6 +22,7 @@ import 'package:bb_block/features/game_mode/domain/round_outcome.dart';
 import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
 import 'package:bb_block/features/persistence/domain/player_progress.dart';
 import 'package:bb_block/features/settings/presentation/settings_sheet.dart';
+import 'package:bb_block/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -122,28 +124,14 @@ class _GameScreenState extends ConsumerState<GameScreen>
                 controller: ref.watch(screenShakeControllerProvider),
                 child: Padding(
                   padding: const EdgeInsets.all(10),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [GamePalette.bezelLight, GamePalette.bezelDark],
-                      ),
-                      border: Border.all(
-                        color: GamePalette.panelDark,
-                        width: 4,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.45),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
+                  // Transparent Glass Panel redesign (user instruction —
+                  // visual only, see the doc comment on `_GlassGamePanel`
+                  // for the full reasoning). Everything that used to be
+                  // laid out directly inside the old opaque `Container`
+                  // below is now the unmodified `child` of this glass
+                  // wrapper instead — same padding, same Column, same
+                  // children, same order.
+                  child: _GlassGamePanel(
                     child: Column(
                       children: [
                         _Header(
@@ -184,6 +172,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                       board: session.board,
                                       tray: session.tray,
                                       removalArmed: _removalArmed,
+                                      starTargetRow: session.starTargetRow,
+                                      starTargetColumn:
+                                          session.starTargetColumn,
                                       onCellTap: (position) {
                                         controller.removeCell(position);
                                         setState(() => _removalArmed = false);
@@ -213,10 +204,19 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                   const SizedBox(height: 12),
                                   SizedBox(
                                     width: boardSide,
-                                    height: cellSize * 2.2,
+                                    // Roomy enough for a 5-tall vertical
+                                    // line piece to render at a legible
+                                    // size in its own slot without
+                                    // clipping (user report) — PieceTray's
+                                    // own per-slot fit-to-box logic is the
+                                    // real fix; this just gives it enough
+                                    // room to work with before it has to
+                                    // shrink a piece down.
+                                    height: cellSize * 2.6,
                                     child: PieceTray(
                                       tray: session.tray,
                                       dragCellSize: cellSize,
+                                      board: session.board,
                                     ),
                                   ),
                                 ],
@@ -249,8 +249,110 @@ class _GameScreenState extends ConsumerState<GameScreen>
                   onResume: () => setState(() => _isPaused = false),
                 ),
               if (session.isOver)
-                _RoundOverlay(config: config, session: session),
+                _RoundOverlay(
+                  config: config,
+                  session: session,
+                  goldKeyCount: progress.goldKeyCount,
+                ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The "Transparent Glass Panel" redesign (user instruction — visual only,
+/// the game's forest background should read through the main HUD card
+/// instead of being fully hidden behind an opaque wood panel). Replaces the
+/// old plain opaque `Container` (solid `bezelLight`/`bezelDark` gradient)
+/// that used to wrap the whole card — everything *inside* it (header,
+/// board, controls, tray, footer) is unchanged, passed straight through as
+/// [child]; only how the card's own background is painted changed.
+///
+/// Structure, innermost first:
+///  - A real `BackdropFilter` blur (sigma 20, within the requested
+///    18-24px range) of whatever's actually behind the panel — the forest
+///    `ImageBackground` — clipped to just this panel's rounded rect (never
+///    the whole screen), so this is the *only* place any blur happens.
+///  - A semi-transparent wood gradient fill (`bezelLight`/`bezelDark` at
+///    ~0.62 alpha, within the requested 0.55-0.70 range) over the blur —
+///    keeps the existing wood-theme colors, just no longer opaque.
+///  - A thin inner white highlight border for a soft "glass edge" sheen
+///    (user instruction: "hafif beyaz highlight ve çok ince kenar
+///    parlaklığı"), nested just inside the existing solid wood frame
+///    border (which stays close to opaque — a frame's edge reads as
+///    definition, not something that needs to be see-through).
+///  - The drop shadow lives on an *outer, unclipped* wrapper — shadows
+///    painted inside a `ClipRRect` get clipped away entirely, a common
+///    glassmorphism pitfall, so it has to sit outside the blur/clip pair.
+///
+/// Nothing inside [child] (`BoardGrid`, `PieceTray`'s own dark panel,
+/// booster/header/footer chrome) changed opacity at all — the board frame,
+/// grid, blocks, buttons, icons, and text all stay fully opaque exactly as
+/// before; only this outer card's own fill became see-through.
+///
+/// Performance (user instruction: no FPS drop, low-end devices too):
+/// wrapped in its own `RepaintBoundary` so this panel's blur/composite
+/// work is isolated into one layer — repaints from sibling overlays
+/// (`_ScorePopup`, `_PauseOverlay`, `_RoundOverlay`) or the `ScreenShake`
+/// wrapper above it don't force this layer to redo its blur pass, and vice
+/// versa.
+class _GlassGamePanel extends StatelessWidget {
+  const _GlassGamePanel({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    const radius = 20.0;
+    return RepaintBoundary(
+      child: Container(
+        // Shadow only — deliberately outside the ClipRRect/BackdropFilter
+        // below, or it would be clipped away.
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(radius),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.45),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    GamePalette.bezelLight.withValues(alpha: 0.62),
+                    GamePalette.bezelDark.withValues(alpha: 0.62),
+                  ],
+                ),
+                border: Border.all(
+                  color: GamePalette.panelDark.withValues(alpha: 0.85),
+                  width: 4,
+                ),
+                borderRadius: BorderRadius.circular(radius),
+              ),
+              child: Container(
+                width: double.infinity,
+                margin: const EdgeInsets.all(1),
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.12),
+                  ),
+                  borderRadius: BorderRadius.circular(radius - 3),
+                ),
+                child: child,
+              ),
+            ),
           ),
         ),
       ),
@@ -291,7 +393,10 @@ class _Header extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: isLevel
-              ? _LevelProgress(score: session.score)
+              ? _LevelProgress(
+                  score: session.score,
+                  level: progress.currentLevel,
+                )
               : Row(
                   children: [
                     _RecordBadge(highScore: highScore),
@@ -450,7 +555,7 @@ class _GoldKeyFooterBadge extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(
-                    PhosphorIcons.keyFill,
+                    PhosphorIconsFill.coin,
                     color: GamePalette.recordGold,
                     size: 14,
                   ),
@@ -468,9 +573,9 @@ class _GoldKeyFooterBadge extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          const Text(
-            'Anahtar',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context)!.goldKeyFooterLabel,
+            style: const TextStyle(
               color: AppColors.paper,
               fontSize: 11,
               fontWeight: FontWeight.bold,
@@ -524,6 +629,7 @@ class _PauseOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return ColoredBox(
       color: Colors.black.withValues(alpha: 0.7),
       child: Center(
@@ -541,19 +647,22 @@ class _PauseOverlay extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Duraklatıldı',
+                  l10n.pausedTitle,
                   style: Theme.of(
                     context,
                   ).textTheme.headlineSmall?.copyWith(color: AppColors.paper),
                 ),
                 const SizedBox(height: 20),
-                _OverlayPrimaryButton(label: 'Devam Et', onTap: onResume),
+                _OverlayPrimaryButton(
+                  label: Text(l10n.resumeButton),
+                  onTap: onResume,
+                ),
                 const SizedBox(height: 10),
                 TextButton(
                   onPressed: () => context.pop(),
-                  child: const Text(
-                    'Ana Menü',
-                    style: TextStyle(color: AppColors.paper),
+                  child: Text(
+                    l10n.mainMenuButton,
+                    style: const TextStyle(color: AppColors.paper),
                   ),
                 ),
               ],
@@ -569,42 +678,93 @@ class _PauseOverlay extends StatelessWidget {
 /// overlays — a gold pill on `SpringPressable`, matching the rest of the
 /// HUD's wood-chrome family instead of the theme's default `FilledButton`.
 class _OverlayPrimaryButton extends StatelessWidget {
-  const _OverlayPrimaryButton({required this.label, required this.onTap});
+  const _OverlayPrimaryButton({
+    required this.label,
+    required this.onTap,
+    this.enabled = true,
+  });
 
-  final String label;
+  // A `Widget` (not a plain string) so it can be a coin-cost `Row` — see
+  // `_CoinCostLabel` — while still inheriting this button's own text style
+  // via `DefaultTextStyle.merge`.
+  final Widget label;
   final VoidCallback onTap;
+  // Dims the button rather than hiding it — used by the Gold Coin continue
+  // option when the player doesn't have enough to spend, so it's still
+  // visible as an available *feature* (the button reappears at full
+  // strength the moment they earn enough) rather than silently
+  // disappearing.
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    return SpringPressable(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [GamePalette.progressFillLight, GamePalette.recordGold],
-          ),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: GamePalette.recordGold.withValues(alpha: 0.4),
-              blurRadius: 14,
+    return Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: SpringPressable(
+        onTap: enabled ? onTap : () {},
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [GamePalette.progressFillLight, GamePalette.recordGold],
             ),
-          ],
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppColors.ink,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: GamePalette.recordGold.withValues(alpha: 0.4),
+                blurRadius: 14,
+              ),
+            ],
+          ),
+          child: DefaultTextStyle.merge(
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppColors.ink,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+            child: label,
           ),
         ),
       ),
+    );
+  }
+}
+
+/// "`prefix` (100 [coin icon])" — user instruction: the button's own
+/// translated text, then a fixed count and the Gold Coin icon embedded
+/// inline, then a closing paren. Inherits its text style from whatever
+/// `DefaultTextStyle` it's placed inside (see `_OverlayPrimaryButton`), so
+/// it automatically matches the surrounding button's color/weight/size.
+class _CoinCostLabel extends StatelessWidget {
+  const _CoinCostLabel({required this.prefix, required this.textColor});
+
+  final String prefix;
+  final Color textColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = DefaultTextStyle.of(context).style;
+    // `Wrap` rather than `Row`: the translated prefix is long enough to
+    // overflow a `Row` on narrower screens — a real overflow bug caught by
+    // the widget test suite (see the identical fix/comment on
+    // `home_screen.dart`'s copy of this widget).
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(prefix, style: style),
+        const SizedBox(width: 4),
+        Icon(
+          PhosphorIconsFill.coin,
+          color: textColor,
+          size: (style.fontSize ?? 16) + 2,
+        ),
+        Text(')', style: style),
+      ],
     );
   }
 }
@@ -646,12 +806,13 @@ class _ScorePopup extends StatelessWidget {
 
 /// A chunky rounded gradient bar over a dark track — `.progress-bar`/
 /// `.progress-fill` from the reference mockup — plus a threshold tick at
-/// the 900-point frame-removal mark, which has no equivalent in the
+/// the 750-point frame-removal mark, which has no equivalent in the
 /// reference but is real game information worth keeping visible.
 class _LevelProgress extends StatelessWidget {
-  const _LevelProgress({required this.score});
+  const _LevelProgress({required this.score, required this.level});
 
   final int score;
+  final int level;
 
   @override
   Widget build(BuildContext context) {
@@ -662,6 +823,16 @@ class _LevelProgress extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(
+          AppLocalizations.of(context)!.levelLabel(level),
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: AppColors.paper.withValues(alpha: 0.75),
+            fontWeight: FontWeight.bold,
+            shadows: const [
+              Shadow(color: Colors.black54, blurRadius: 4),
+            ],
+          ),
+        ),
         Text(
           '$score / $target',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -723,10 +894,15 @@ class _LevelProgress extends StatelessWidget {
 }
 
 class _RoundOverlay extends ConsumerStatefulWidget {
-  const _RoundOverlay({required this.config, required this.session});
+  const _RoundOverlay({
+    required this.config,
+    required this.session,
+    required this.goldKeyCount,
+  });
 
   final GameLaunchConfig config;
   final GameSession session;
+  final int goldKeyCount;
 
   @override
   ConsumerState<_RoundOverlay> createState() => _RoundOverlayState();
@@ -761,6 +937,7 @@ class _RoundOverlayState extends ConsumerState<_RoundOverlay> {
   Widget build(BuildContext context) {
     final session = widget.session;
     final config = widget.config;
+    final l10n = AppLocalizations.of(context)!;
     return Newton(
       key: _newtonKey,
       child: ColoredBox(
@@ -793,7 +970,7 @@ class _RoundOverlayState extends ConsumerState<_RoundOverlay> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            _title(session.outcome),
+                            _title(l10n, session.outcome),
                             textAlign: TextAlign.center,
                             style: Theme.of(context).textTheme.headlineSmall
                                 ?.copyWith(
@@ -808,7 +985,7 @@ class _RoundOverlayState extends ConsumerState<_RoundOverlay> {
                             duration: const Duration(milliseconds: 600),
                             curve: Curves.easeOutCubic,
                             builder: (context, value, _) => Text(
-                              'Skor: $value',
+                              l10n.scoreLabel(value),
                               style: const TextStyle(
                                 color: AppColors.paper,
                                 fontSize: 18,
@@ -816,20 +993,70 @@ class _RoundOverlayState extends ConsumerState<_RoundOverlay> {
                             ),
                           ),
                           const SizedBox(height: 24),
-                          _OverlayPrimaryButton(
-                            label: _buttonLabel(session.outcome),
-                            onTap: () => ref.invalidate(
-                              gameControllerProvider(config),
+                          // Level Complete drops straight to a single gold
+                          // "Main Menu" button — no "Next Level" (user
+                          // instruction): the player picks their next
+                          // Gold-Key choice fresh from the home screen
+                          // rather than continuing straight through.
+                          if (_isVictory)
+                            _OverlayPrimaryButton(
+                              label: Text(l10n.mainMenuButton),
+                              onTap: () => context.pop(),
+                            )
+                          else if (session.outcome
+                              is RoundOutcomeClassicGameOver) ...[
+                            // User instruction: a prominent gold "spend
+                            // coins and continue" option, with the existing
+                            // Play Again/Main Menu pair kept but demoted to
+                            // plain text so this new option reads as the
+                            // primary path forward.
+                            _OverlayPrimaryButton(
+                              label: _CoinCostLabel(
+                                prefix: l10n.continueWithCoinsPrefix,
+                                textColor: AppColors.ink,
+                              ),
+                              enabled:
+                                  widget.goldKeyCount >=
+                                  GoldKeyConstants.actionCostCoins,
+                              onTap: () => ref
+                                  .read(
+                                    gameControllerProvider(config).notifier,
+                                  )
+                                  .continueWithGoldKey(),
                             ),
-                          ),
-                          const SizedBox(height: 10),
-                          TextButton(
-                            onPressed: () => context.pop(),
-                            child: const Text(
-                              'Ana Menü',
-                              style: TextStyle(color: AppColors.paper),
+                            const SizedBox(height: 10),
+                            TextButton(
+                              onPressed: () => ref.invalidate(
+                                gameControllerProvider(config),
+                              ),
+                              child: Text(
+                                _buttonLabel(l10n, session.outcome),
+                                style: const TextStyle(color: AppColors.paper),
+                              ),
                             ),
-                          ),
+                            TextButton(
+                              onPressed: () => context.pop(),
+                              child: Text(
+                                l10n.mainMenuButton,
+                                style: const TextStyle(color: AppColors.paper),
+                              ),
+                            ),
+                          ] else ...[
+                            _OverlayPrimaryButton(
+                              label: Text(_buttonLabel(l10n, session.outcome)),
+                              onTap: () => ref.invalidate(
+                                gameControllerProvider(config),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            TextButton(
+                              onPressed: () => context.pop(),
+                              child: Text(
+                                l10n.mainMenuButton,
+                                style: const TextStyle(color: AppColors.paper),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -843,23 +1070,25 @@ class _RoundOverlayState extends ConsumerState<_RoundOverlay> {
     );
   }
 
-  String _title(RoundOutcome outcome) => switch (outcome) {
-    RoundOutcomeLevelComplete() => 'Bölüm Tamamlandı!',
-    RoundOutcomeLevelFailed() => 'Bölüm Başarısız',
-    RoundOutcomeClassicGameOver() => 'Oyun Bitti',
-    RoundOutcomeOngoing() => '',
-  };
+  String _title(AppLocalizations l10n, RoundOutcome outcome) =>
+      switch (outcome) {
+        RoundOutcomeLevelComplete() => l10n.levelCompleteTitle,
+        RoundOutcomeLevelFailed() => l10n.levelFailedTitle,
+        RoundOutcomeClassicGameOver() => l10n.classicGameOverTitle,
+        RoundOutcomeOngoing() => '',
+      };
 
-  // A completed level moves forward to the next one (mechanically just a
-  // fresh session under decision #5 — every level plays the same), not a
-  // repeat of the one just finished, so it gets its own label instead of
-  // reusing "Tekrar Oyna" ("Play Again").
-  String _buttonLabel(RoundOutcome outcome) => switch (outcome) {
-    RoundOutcomeLevelComplete() => 'Sonraki Bölüm',
-    RoundOutcomeLevelFailed() ||
-    RoundOutcomeClassicGameOver() ||
-    RoundOutcomeOngoing() => 'Tekrar Oyna',
-  };
+  // Only called for the non-victory branch now — Level Complete shows a
+  // single "Main Menu" button directly (see `build`), never this one.
+  String _buttonLabel(AppLocalizations l10n, RoundOutcome outcome) =>
+      switch (outcome) {
+        RoundOutcomeLevelComplete() => throw StateError(
+          'Level Complete never reaches _buttonLabel',
+        ),
+        RoundOutcomeLevelFailed() ||
+        RoundOutcomeClassicGameOver() ||
+        RoundOutcomeOngoing() => l10n.playAgainButton,
+      };
 }
 
 /// A brief golden screen flash for Level Complete — fades in fast and out

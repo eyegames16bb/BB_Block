@@ -27,6 +27,17 @@ abstract class GameSession with _$GameSession {
     @Default(0) int rotateCharges,
     @Default(0) int swapCharges,
     @Default(0) int singleCellRemoveCharges,
+    // Level Mode only (user instruction): the row or column — never
+    // both — marked by two star icons on opposite frame points this
+    // round. Completing it once awards `LevelModeConstants.starLineBonus`
+    // on top of the normal clear score — a ONE-TIME bonus (revised user
+    // instruction): `GameEngine.placePiece` nulls both fields out the
+    // instant it's earned, which is also what tells `BoardGrid` to animate
+    // the two star icons away (the frame itself is untouched). Re-rolled
+    // fresh only when a new level starts; `null` for Classic Mode, which
+    // has no frame-point stars at all.
+    int? starTargetRow,
+    int? starTargetColumn,
   }) = _GameSession;
 
   const GameSession._();

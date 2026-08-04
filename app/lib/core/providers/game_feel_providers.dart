@@ -1,3 +1,4 @@
+import 'package:bb_block/core/game_feel/drag_feel_controller.dart';
 import 'package:bb_block/core/game_feel/feedback_orchestrator.dart';
 import 'package:bb_block/core/game_feel/screen_shake.dart';
 import 'package:bb_block/core/providers/audio_providers.dart';
@@ -10,6 +11,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// reaches whatever's currently on screen.
 final screenShakeControllerProvider = Provider<ScreenShakeController>((ref) {
   final controller = ScreenShakeController();
+  ref.onDispose(controller.dispose);
+  return controller;
+});
+
+/// One [DragFeelController] per app — `BoardGrid` writes to it while a drag
+/// hovers the board (a subtle, board-independent physicality tilt only —
+/// see the controller's own doc comment for why it deliberately does *not*
+/// also feed a grid-based pull back into the piece's position), and the
+/// tray's floating drag image reads it, the same cross-widget bridge
+/// pattern as [screenShakeControllerProvider] above.
+final dragFeelControllerProvider = Provider<DragFeelController>((ref) {
+  final controller = DragFeelController();
   ref.onDispose(controller.dispose);
   return controller;
 });

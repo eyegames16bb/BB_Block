@@ -5,8 +5,19 @@ final class LevelScoringStrategy implements ScoringStrategy {
   const LevelScoringStrategy();
 
   @override
-  int pointsPerClearedLine({required int scoreBeforeClear}) =>
+  int pointsForClear({required int lineCount, required int scoreBeforeClear}) {
+    if (scoreBeforeClear >= LevelModeConstants.frameRemovalThreshold) {
+      // Unchanged, original flat-rate model — user instruction: "the
+      // current scoring system continues" once the frame is gone.
+      return lineCount * ScoringConstants.levelPostThresholdLineScore;
+    }
+    const table = ScoringConstants.standardClearPoints;
+    return table[lineCount.clamp(0, table.length - 1)];
+  }
+
+  @override
+  int comboBonusPoints({required int scoreBeforeClear}) =>
       scoreBeforeClear >= LevelModeConstants.frameRemovalThreshold
-          ? ScoringConstants.levelPostThresholdLineScore
-          : ScoringConstants.levelPreThresholdLineScore;
+          ? 0
+          : ScoringConstants.standardComboBonus;
 }

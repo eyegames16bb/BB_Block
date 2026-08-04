@@ -7,3 +7,10 @@ desktop.ini
 .vscode/
 .idea/
 *.swp
+
+# Build artifacts
+*.apk
+*.aab
+
+# Stray Windows redirect artifact
+/nul

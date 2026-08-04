@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../support/fake_audio_service.dart';
 import '../../support/fake_game_save_repository.dart';
 import '../../support/fake_haptics_service.dart';
+import '../../support/fake_round_save_repository.dart';
 
 void main() {
   ProviderContainer containerWith({
@@ -24,6 +25,9 @@ void main() {
         gameSaveRepositoryProvider.overrideWithValue(
           FakeGameSaveRepository(),
         ),
+        roundSaveRepositoryProvider.overrideWithValue(
+          FakeRoundSaveRepository(),
+        ),
         hapticsServiceProvider.overrideWithValue(haptics),
         audioServiceProvider.overrideWithValue(audio),
       ],
@@ -32,8 +36,8 @@ void main() {
     return container;
   }
 
-  test('placing a piece triggers a haptic pulse and a SFX through the real '
-      'wiring', () {
+  test('placing a piece plays its SFX through the real wiring and a medium '
+      'haptic (user instruction: Placement Feedback)', () {
     final haptics = FakeHapticsService();
     final audio = FakeAudioService();
     final container = containerWith(haptics: haptics, audio: audio);
@@ -51,13 +55,8 @@ void main() {
       anchor: const GridPosition(row: 0, column: 0),
     );
 
-    expect(haptics.triggered, isNotEmpty);
-    // pieceSnap is the primary SFX; pieceDrop is the Game Feel Engine's
-    // layered secondary sound underneath it (see game_feel_mapping.dart).
-    expect(
-      audio.playedEffects,
-      [SoundEffect.pieceSnap, SoundEffect.pieceDrop],
-    );
+    expect(haptics.triggered, [HapticIntensity.medium]);
+    expect(audio.playedEffects, [SoundEffect.blockPlace]);
   });
 
   test(
@@ -77,6 +76,9 @@ void main() {
     controller.rotateTray();
 
     expect(haptics.triggered, [HapticIntensity.light]);
-    expect(audio.playedEffects, [SoundEffect.invalidMove]);
+    expect(
+      audio.playedEffects,
+      [SoundEffect.invalidMove, SoundEffect.woodHit],
+    );
   });
 }

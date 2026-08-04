@@ -10,13 +10,14 @@ import 'package:flutter/physics.dart';
 ///
 /// Place (spring pop) → Glow → *(haptic + wood-hit sound already fired by
 /// `GameController` the instant the state changed, so they land right at
-/// the pop's impact)* → Hit Freeze (80ms hold) → Sparkle particles →
+/// the pop's impact)* → Hit Freeze (50ms hold) → Sparkle particles →
 /// Shadow expand.
 ///
 /// Every stage after the initial spring pop is sequenced explicitly via
 /// `async`/`await` rather than derived from one shared progress value, so
-/// the 80ms freeze is a real hold (nothing animates) rather than an
-/// eased-out tail pretending to be one.
+/// the 50ms freeze (user instruction: "kısa hit freeze (40-60ms)") is a
+/// real hold (nothing animates) rather than an eased-out tail pretending
+/// to be one.
 class PlaceSequence extends StatefulWidget {
   const PlaceSequence({
     required this.cellSize,
@@ -69,8 +70,9 @@ class _PlaceSequenceState extends State<PlaceSequence>
     await _pop.animateWith(SpringSimulation(_placeSpring, 0.72, 1, 8));
     if (!mounted) return;
 
-    // Hit Freeze — a real hold, not an eased tail.
-    await Future<void>.delayed(const Duration(milliseconds: 80));
+    // Hit Freeze — a real hold, not an eased tail. 50ms (user instruction:
+    // "kısa hit freeze (40-60ms)" for placement specifically).
+    await Future<void>.delayed(const Duration(milliseconds: 50));
     if (!mounted) return;
 
     widget.onSparkle();
@@ -95,6 +97,7 @@ class _PlaceSequenceState extends State<PlaceSequence>
         final popValue = _pop.value;
         final opacity = ((popValue - 0.6) / 0.4).clamp(0.0, 1.0);
         return Stack(
+          fit: StackFit.expand,
           clipBehavior: Clip.none,
           alignment: Alignment.center,
           children: [
