@@ -1,10 +1,12 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:bb_block/app.dart';
+import 'package:bb_block/core/config/supabase_config.dart';
 import 'package:bb_block/core/providers/persistence_providers.dart';
 import 'package:bb_block/core/utils/app_logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +36,22 @@ Future<void> main() async {
     );
   } on Object catch (error) {
     appLogger.w('Could not configure global audio session: $error');
+  }
+
+  // Powers the eyegames.net admin dashboard's rewarded-ad-view counter (see
+  // `SupabaseAnalyticsService`). Credentials come from `--dart-define` at
+  // build time — a dev build without them left unset simply skips this and
+  // `SupabaseAnalyticsService` fails silently on every call, same as a
+  // missing audio/image asset elsewhere in this app.
+  if (SupabaseConfig.isConfigured) {
+    try {
+      await Supabase.initialize(
+        url: SupabaseConfig.url,
+        publishableKey: SupabaseConfig.anonKey,
+      );
+    } on Object catch (error) {
+      appLogger.w('Could not initialize Supabase: $error');
+    }
   }
 
   runApp(

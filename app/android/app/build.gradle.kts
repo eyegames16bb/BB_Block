@@ -68,6 +68,19 @@ android {
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
+            // R8/ProGuard + resource shrinking — önceden hiç açık değildi,
+            // yayınlanan APK/AAB minify/obfuscate edilmeden gidiyordu
+            // (MASTER_AUDIT_REPORT.md madde A3/G3). Kod-taraflı obfuscation
+            // (`--obfuscate --split-debug-info`) ayrı bir `flutter build`
+            // komut satırı bayrağı — Codemagic workflow'u (Aşama 12)
+            // release build'i her zaman bu bayraklarla tetikleyecek şekilde
+            // kurulacak.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

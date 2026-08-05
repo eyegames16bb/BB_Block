@@ -1,4 +1,5 @@
 import 'package:bb_block/core/constants/app_constants.dart';
+import 'package:bb_block/core/providers/analytics_providers.dart';
 import 'package:bb_block/core/providers/audio_providers.dart';
 import 'package:bb_block/core/providers/haptics_providers.dart';
 import 'package:bb_block/core/providers/persistence_providers.dart';
@@ -10,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
 
+import '../../support/fake_analytics_service.dart';
 import '../../support/fake_audio_service.dart';
 import '../../support/fake_game_save_repository.dart';
 import '../../support/fake_haptics_service.dart';
@@ -18,7 +20,9 @@ void main() {
   // `PlayerProgressController.build()` touches both services (to sync a
   // persisted mute preference) — without fakes here, the real
   // platform-channel-backed implementations throw under `flutter test`.
+  late FakeAnalyticsService analyticsService;
   ProviderContainer container() {
+    analyticsService = FakeAnalyticsService();
     final container = ProviderContainer(
       overrides: [
         gameSaveRepositoryProvider.overrideWithValue(
@@ -26,6 +30,7 @@ void main() {
         ),
         audioServiceProvider.overrideWithValue(FakeAudioService()),
         hapticsServiceProvider.overrideWithValue(FakeHapticsService()),
+        analyticsServiceProvider.overrideWithValue(analyticsService),
       ],
     );
     addTearDown(container.dispose);
@@ -153,6 +158,9 @@ void main() {
           .goldKeyCount,
       GoldKeyConstants.startingGoldKeyCount + GoldKeyConstants.rewardedAdCoins,
     );
+    // eyegames.net admin dashboard's ad-view counter — logged at the same
+    // moment as the reward.
+    expect(analyticsService.rewardedAdViewCount, 1);
   });
 
   testWidgets(

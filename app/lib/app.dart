@@ -10,9 +10,16 @@ class BbBlockApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final languageCode =
-        ref.watch(playerProgressControllerProvider).value?.languageCode ??
-        'tr';
+    // `.select` narrows the watch to just `languageCode` — without it, this
+    // root widget (wrapping the whole `MaterialApp.router`, i.e. every
+    // screen) rebuilt on every `PlayerProgress` mutation anywhere in the
+    // app (score updates, gold key spends, booster unlocks, ...), not just
+    // language changes.
+    final languageCode = ref.watch(
+      playerProgressControllerProvider.select(
+        (async) => async.value?.languageCode ?? 'tr',
+      ),
+    );
 
     return MaterialApp.router(
       title: 'BB Block',

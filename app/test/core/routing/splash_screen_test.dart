@@ -57,12 +57,16 @@ void main() {
     await tester.pump();
 
     // Not `find.byType(Image), findsNothing` — HomeScreen has its own
-    // background `Image` (a different asset); only the splash logo
+    // background `Image` (a different asset, and one that's now wrapped in
+    // a `ResizeImage` rather than a bare `AssetImage` since it's decoded
+    // via `cacheWidth`/`cacheHeight` — hence the `is AssetImage` guard
+    // below instead of an unchecked cast); only the splash logo
     // specifically should be gone.
     expect(
       find.byWidgetPredicate(
         (widget) =>
             widget is Image &&
+            widget.image is AssetImage &&
             (widget.image as AssetImage).assetName ==
                 'assets/images/eyegames_logo.png',
       ),

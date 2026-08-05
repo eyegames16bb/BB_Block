@@ -1,0 +1,234 @@
+definitions:
+  # Shared across all workflows — the Flutter project lives in `app/`, not
+  # the repo root (this repo root also holds this audit's documentation
+  # files and the sibling eyegames.net source is a SEPARATE repository, not
+  # part of this one). Every script below `cd`s into $FLUTTER_APP_DIR first.
+  #
+  # Note on duplication below: the four "common setup" steps (pub get ->
+  # codegen -> analyze -> test) are repeated verbatim in all three
+  # workflows rather than factored out with a YAML anchor. A `scripts:`
+  # list is a YAML *sequence*; anchoring a sequence and referencing it with
+  # `- *anchor` inside another sequence nests it as a single list-shaped
+  # item instead of splicing in its four entries — YAML has no sequence-
+  # merge equivalent of the mapping `<<: *anchor` operator, so that pattern
+  # would silently produce a broken `scripts:` list. Plain repetition is
+  # the correct, standard approach for step lists in codemagic.yaml.
+  flutter_app_dir: &flutter_app_dir app
+
+workflows:
+  # ─────────────────────────────────────────────────────────────────────
+  # DEBUG WORKFLOW — every push/PR to a non-main branch. No signing, no
+  # publishing, purely "does it still build and pass tests" verification.
+  # ─────────────────────────────────────────────────────────────────────
+  debug-workflow:
+    name: BB Block · Debug Build
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable # pinned to the `stable` channel's latest — see docs/ENVIRONMENT_VARIABLES.md for why this repo doesn't hardcode an exact patch version
+      java: 17 # AGP 8.7.3 (this repo's pinned version, android/settings.gradle.kts) requires JDK 17 to run Gradle itself, independent of the app's own Java 11 bytecode target (compileOptions in android/app/build.gradle.kts)
+      vars:
+        FLUTTER_APP_DIR: *flutter_app_dir
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: main
+          include: false
+        - pattern: "*"
+          include: true
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          cd $FLUTTER_APP_DIR
+          flutter pub get
+      - name: Generate code (freezed / json_serializable / riverpod_generator)
+        script: |
+          cd $FLUTTER_APP_DIR
+          dart run build_runner build --delete-conflicting-outputs
+      - name: Static analysis (flutter analyze)
+        script: |
+          cd $FLUTTER_APP_DIR
+          flutter analyze
+      - name: Run tests
+        script: |
+          cd $FLUTTER_APP_DIR
+          flutter test
+      - name: Build debug APK
+        script: |
+          cd $FLUTTER_APP_DIR
+          flutter build apk --debug
+    artifacts:
+      - app/build/app/outputs/**/*.apk
+
+  # ─────────────────────────────────────────────────────────────────────
+  # ANDROID RELEASE WORKFLOW — triggered by a `v*` git tag (see
+  # docs/BUILD_PIPELINE.md for the tagging convention this expects, and
+  # VERSIONING_GUIDE.md in the repo root for how tag -> build-name/number
+  # maps). Builds a minified, obfuscated, signed AAB and pushes it to
+  # Google Play.
+  # ─────────────────────────────────────────────────────────────────────
+  android-release:
+    name: BB Block · Android Release
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      java: 17
+      groups:
+        # Env var GROUPS — configured once in the Codemagic dashboard
+        # (Team settings > Environment variables), referenced by name here.
+        # See docs/ENVIRONMENT_VARIABLES.md for exactly which variables each
+        # group must contain; none of the actual secret VALUES live in this
+        # repo, only these group names.
+        - bb_block_secrets # SUPABASE_URL, SUPABASE_ANON_KEY
+        - bb_block_google_play # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+      vars:
+        FLUTTER_APP_DIR: *flutter_app_dir
+        PACKAGE_NAME: "com.bbblock.bb_block" # ⚠️ placeholder — see KNOWN_LIMITATIONS.md item 2. Update here AND in android/app/build.gradle.kts (applicationId) together, they must always match.
+      android_signing:
+        # References a keystore uploaded to Codemagic under this exact
+        # reference name (Team settings > Code signing identities >
+        # Android keystores) — NOT the actual .jks file, which never
+        # touches this repo. Codemagic decodes it at build time and
+        # injects CM_KEYSTORE_PATH / CM_KEYSTORE_PASSWORD / CM_KEY_ALIAS /
+        # CM_KEY_PASSWORD, consumed by the signing step below.
+        - bb_block_keystore
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: "v*"
+          include: true
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          cd $FLUTTER_APP_DIR
+          flutter pub get
+      - name: Generate code (freezed / json_serializable / riverpod_generator)
+        script: |
+          cd $FLUTTER_APP_DIR
+          dart run build_runner build --delete-conflicting-outputs
+      - name: Static analysis (flutter analyze)
+        script: |
+          cd $FLUTTER_APP_DIR
+          flutter analyze
+      - name: Run tests
+        script: |
+          cd $FLUTTER_APP_DIR
+          flutter test
+      - name: Write android/key.properties from the Codemagic-managed keystore
+        script: |
+          # This repo's android/app/build.gradle.kts already implements a
+          # `key.properties`-file-based signing setup (see that file's own
+          # comments) — deliberately NOT touched here. This step just
+          # produces that file from Codemagic's injected keystore reference
+          # instead of a developer's local copy, so the existing, already-
+          # audited Gradle logic works completely unmodified in CI.
+          cat > "$FLUTTER_APP_DIR/android/key.properties" <<EOF
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyPassword=$CM_KEY_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          storeFile=$CM_KEYSTORE_PATH
+          EOF
+      - name: Build release AAB (minified, obfuscated)
+        script: |
+          cd $FLUTTER_APP_DIR
+          flutter build appbundle --release \
+            --build-name="${CM_TAG#v}" \
+            --build-number="$PROJECT_BUILD_NUMBER" \
+            --obfuscate --split-debug-info=build/symbols \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+    artifacts:
+      - app/build/app/outputs/**/*.aab
+      - app/build/app/outputs/mapping/**/mapping.txt # deobfuscation map — upload to Play Console alongside the AAB, see POST_RELEASE_CHECKLIST.md
+      - app/build/symbols/** # Dart obfuscation symbols — archive per-release, needed to symbolicate future crash reports (see RELEASE_GUIDE.md)
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal # ships to Internal Testing first — promote to production manually from Play Console once verified, see STORE_SUBMISSION_GUIDE.md
+        submit_as_draft: true
+
+  # ─────────────────────────────────────────────────────────────────────
+  # iOS RELEASE WORKFLOW — same `v*` tag trigger as Android, so a single
+  # tag ships both platforms together. Builds a minified, obfuscated,
+  # signed IPA and pushes it to TestFlight.
+  #
+  # ⚠️ UNVERIFIED: every other workflow/script in this file mirrors a
+  # command that was actually run and confirmed working during this
+  # project's production audit (2026-08-05, see IOS_RELEASE.md). This one
+  # could not be — the audit was performed on a Windows machine with no
+  # Xcode access, so `flutter build ipa` has literally never been run
+  # against this codebase. The first real run of this workflow may surface
+  # issues (missing ios/Podfile — never generated, since that requires a
+  # Mac; a CocoaPods version mismatch; a signing configuration mistake)
+  # that a Codemagic build log will need to be read carefully to diagnose.
+  # See IOS_RELEASE.md for the full list of what's confirmed vs. not.
+  # ─────────────────────────────────────────────────────────────────────
+  ios-release:
+    name: BB Block · iOS Release
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      xcode: latest # not pinned to a specific version — see docs/ENVIRONMENT_VARIABLES.md
+      cocoapods: default
+      groups:
+        - bb_block_secrets
+        - bb_block_app_store_connect # APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_KEY_IDENTIFIER, APP_STORE_CONNECT_PRIVATE_KEY
+      vars:
+        FLUTTER_APP_DIR: *flutter_app_dir
+        BUNDLE_ID: "com.bbblock.bb_block" # ⚠️ placeholder — must match Info.plist's PRODUCT_BUNDLE_IDENTIFIER and the App Store Connect app record. See KNOWN_LIMITATIONS.md item 2.
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.bbblock.bb_block # keep in sync with BUNDLE_ID above
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: "v*"
+          include: true
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          cd $FLUTTER_APP_DIR
+          flutter pub get
+      - name: Generate code (freezed / json_serializable / riverpod_generator)
+        script: |
+          cd $FLUTTER_APP_DIR
+          dart run build_runner build --delete-conflicting-outputs
+      - name: Static analysis (flutter analyze)
+        script: |
+          cd $FLUTTER_APP_DIR
+          flutter analyze
+      - name: Run tests
+        script: |
+          cd $FLUTTER_APP_DIR
+          flutter test
+      - name: Build release IPA (minified, obfuscated)
+        script: |
+          cd $FLUTTER_APP_DIR
+          # `ios_signing` above should make Codemagic auto-inject the right
+          # provisioning profile/signing identity for a plain `flutter
+          # build ipa`. UNVERIFIED (see the workflow's top-level warning) —
+          # if this specific step fails on the first real run, Codemagic's
+          # own troubleshooting docs for "flutter build ipa code signing"
+          # are the next stop; it may need an explicit
+          # `--export-options-plist` pointed at a profile Codemagic
+          # generates under `$CM_BUILD_DIR` (exact path would only be known
+          # from a real build log, not asserted here as fact).
+          flutter build ipa --release \
+            --build-name="${CM_TAG#v}" \
+            --build-number="$PROJECT_BUILD_NUMBER" \
+            --obfuscate --split-debug-info=build/symbols \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+    artifacts:
+      - app/build/ios/ipa/*.ipa
+      - app/build/symbols/**
+    publishing:
+      app_store_connect:
+        auth: integration # uses the API key group above rather than an Apple ID + app-specific password
+        submit_to_testflight: true

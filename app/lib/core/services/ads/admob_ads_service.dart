@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:bb_block/core/services/ads/ads_service.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -30,6 +31,17 @@ final class AdMobAdsService implements AdsService {
 
   @override
   Future<void> init() async {
+    // App Store rejection risk otherwise: iOS forbids initializing an ad
+    // SDK capable of IDFA-based tracking before the user has answered the
+    // ATT prompt. `app_tracking_transparency` is iOS-only — the package's
+    // own status/request calls are meaningless on Android, hence the guard.
+    if (Platform.isIOS) {
+      final status =
+          await AppTrackingTransparency.trackingAuthorizationStatus;
+      if (status == TrackingStatus.notDetermined) {
+        await AppTrackingTransparency.requestTrackingAuthorization();
+      }
+    }
     await MobileAds.instance.initialize();
     unawaited(_loadRewardedAd());
   }

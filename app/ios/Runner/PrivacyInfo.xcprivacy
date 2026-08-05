@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	Baseline privacy manifest for the Runner (app-level) target — required by
+	Apple since 2024 (App Store Connect otherwise rejects the build). This
+	covers what THIS app's own Dart/Swift code is known to do:
+	  - google_mobile_ads (AdMob), gated behind app_tracking_transparency's
+	    ATT prompt (see admob_ads_service.dart) -> real IDFA-based tracking.
+	  - shared_preferences (PlayerProgress/SavedRound persistence) -> reads
+	    UserDefaults.
+	  - Procedural SFX caching writes temp WAV files under the system temp
+	    directory (core/services/audio/procedural_sfx.dart) -> file-timestamp
+	    APIs.
+
+	IMPORTANT — verification boundary: bundled third-party SDKs (AdMob and
+	its dependencies, shared_preferences_foundation, path_provider_foundation,
+	etc.) increasingly ship their OWN PrivacyInfo.xcprivacy inside their own
+	pods/xcframeworks, which this file does not need to (and should not)
+	duplicate. Whether the exact pinned SDK versions still require anything
+	beyond what's declared here can only be confirmed with Xcode's own
+	"Generate Privacy Report" on an archived build (Product > Archive >
+	Distribute App > ... on a Mac) — this repo was audited from a Windows
+	machine with no Xcode access, so that verification step is still a
+	required manual action before App Store submission.
+	-->
+	<key>NSPrivacyTracking</key>
+	<true/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeDeviceID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeThirdPartyAdvertising</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

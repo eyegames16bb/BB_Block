@@ -230,11 +230,19 @@ class _HomeBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Decodes to the actual screen resolution rather than the source PNG's
+    // full native size (853x1844, 3.8MB) — same crop/fit, cheaper decode.
+    // Safe here because this widget is always used inside a
+    // `Positioned.fill`, so the screen's physical size is the render size.
+    final size = MediaQuery.sizeOf(context);
+    final dpr = MediaQuery.devicePixelRatioOf(context);
     return Image.asset(
       'assets/images/home_background.png',
       fit: BoxFit.cover,
       width: double.infinity,
       height: double.infinity,
+      cacheWidth: (size.width * dpr).round(),
+      cacheHeight: (size.height * dpr).round(),
     );
   }
 }

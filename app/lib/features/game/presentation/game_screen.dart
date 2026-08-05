@@ -938,9 +938,7 @@ class _RoundOverlayState extends ConsumerState<_RoundOverlay> {
     final session = widget.session;
     final config = widget.config;
     final l10n = AppLocalizations.of(context)!;
-    return Newton(
-      key: _newtonKey,
-      child: ColoredBox(
+    final content = ColoredBox(
         color: Colors.black.withValues(alpha: 0.6),
         child: Stack(
           alignment: Alignment.center,
@@ -1066,8 +1064,12 @@ class _RoundOverlayState extends ConsumerState<_RoundOverlay> {
             ),
           ],
         ),
-      ),
-    );
+      );
+    // Confetti (`Newton`) only ever fires for the victory case (see
+    // `initState` above) — mounting a whole particle system + its own
+    // always-running `Ticker` for game-over/level-failed overlays that will
+    // never call `addEffect` was pure waste, so it's only wrapped here.
+    return _isVictory ? Newton(key: _newtonKey, child: content) : content;
   }
 
   String _title(AppLocalizations l10n, RoundOutcome outcome) =>

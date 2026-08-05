@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bb_block/core/game_feel/spring_pressable.dart';
+import 'package:bb_block/core/providers/analytics_providers.dart';
 import 'package:bb_block/core/theme/app_theme.dart';
 import 'package:bb_block/core/theme/glass_panel.dart';
 import 'package:bb_block/features/game/presentation/widgets/game_palette.dart';
@@ -61,6 +62,9 @@ class _RewardedAdScreenState extends ConsumerState<RewardedAdScreen>
     unawaited(
       ref.read(playerProgressControllerProvider.notifier).grantGoldKey(),
     );
+    // Feeds the eyegames.net admin dashboard's ad-view counter — logged at
+    // the exact same "watched" moment as the reward itself.
+    unawaited(ref.read(analyticsServiceProvider).logRewardedAdView());
     setState(() => _phase = _AdPhase.rating);
   }
 
@@ -121,9 +125,14 @@ class _AdContent extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: Image.asset(
-            'assets/images/test_ad.png',
+            'assets/images/rewarded_ad_promo.png',
             width: 320,
             fit: BoxFit.cover,
+            // The source PNG is 1536x1024 — decoding it at native
+            // resolution for a 320-logical-pixel-wide box wastes memory on
+            // every device. `cacheWidth` decodes straight to the display
+            // size (scaled for DPR) instead.
+            cacheWidth: (320 * MediaQuery.devicePixelRatioOf(context)).round(),
           ),
         ),
         const SizedBox(height: 36),
