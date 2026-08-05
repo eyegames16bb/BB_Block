@@ -407,6 +407,14 @@ detayı var, burada yalnızca audit'i hızlandıracak özet var:
 - **2026-08-05:** Aşama 11 yürütüldü — 11 doküman yazıldı (yeni klasör açılmadı). **Aşama 1-11
   TAMAMEN TAMAMLANDI.** Kullanıcının kendi talimatına göre şimdi Aşama 12'ye (Codemagic CI/CD)
   geçiliyor.
+- **2026-08-05:** Kullanıcı `eyegames.net/admin`'in 404 verdiğini bildirdi — araştırılınca eyegames.net
+  GitHub reposunun (`eyegames16bb/eyegames-website`) yalnızca TEK bir ilk commit içerdiği, admin
+  panelinin/Supabase entegrasyonunun/bu oturumun TÜM düzeltmelerinin hiç push edilmediği bulundu (Vercel
+  hiç görmemişti). Kullanıcı "hepsini yap, commit et, deploy et" dedi. İki repo da (BB Block `dd2c3aa`,
+  eyegames.net `2c748dc`) secret taraması yapılıp (`.env`, key.properties, service-role key — hiçbiri
+  commit edilmedi, hepsi doğru gitignore'lu) commit edilip push edildi. Vercel'in otomatik deploy'u
+  tetikleyip tetiklemediği bu ortamdan doğrulanamıyor (Vercel CLI/erişimi yok) — kullanıcının Vercel
+  dashboard'undan kontrol etmesi gerekiyor.
 - **2026-08-05:** Aşama 12 (Codemagic CI/CD) tamamlandı. `codemagic.yaml` repo köküne yazıldı
   (`release/` altına DEĞİL — teknik gerekçe dokümante edildi). 3 workflow (debug/android-release/
   ios-release). Gerçek bir YAML anchor/sequence bug'ı yazım sırasında yakalanıp düzeltildi. 5 doküman

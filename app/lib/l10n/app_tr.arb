@@ -3,6 +3,8 @@
 
   "rewardedAdChip": "Ödüllü Reklam",
   "adNotReady": "Reklam henüz hazır değil, birazdan tekrar deneyin.",
+  "watchAdConfirmMessage": "Reklam İzle ve +100 Coin Kazan.",
+  "watchAdConfirmButton": "Reklam İzle",
   "classicModeButton": "Klasik Mod",
   "statFramed": "Çerçeveli",
   "statFrameless": "Çerçevesiz",

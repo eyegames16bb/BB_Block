@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bb_block/core/constants/app_constants.dart';
 import 'package:bb_block/core/game_feel/spring_pressable.dart';
 import 'package:bb_block/core/providers/persistence_providers.dart';
@@ -60,14 +62,12 @@ class HomeScreen extends ConsumerWidget {
                       _TopChip(
                         icon: PhosphorIcons.filmSlate,
                         label: l10n.rewardedAdChip,
-                        onTap: () => context.push(AppRoutes.rewardedAd),
+                        onTap: () => _confirmWatchAd(context),
                       ),
                       Row(
                         children: [
-                          _TopChip(
-                            icon: PhosphorIconsFill.coin,
-                            iconColor: GamePalette.recordGold,
-                            label: '${progress.goldKeyCount}',
+                          _CoinChip(
+                            goldKeyCount: progress.goldKeyCount,
                             onTap: () => _showGoldKeyProgress(context, ref),
                           ),
                           const SizedBox(width: 10),
@@ -146,6 +146,21 @@ class HomeScreen extends ConsumerWidget {
         classicHasFrame: hasFrame,
       ),
     );
+  }
+
+  /// Warning dialog shown before actually navigating to the (test) rewarded
+  /// ad — user instruction: confirm the +100 Coin reward up front, with a
+  /// single gold "Reklam İzle" button, rather than jumping straight into
+  /// the ad screen.
+  Future<void> _confirmWatchAd(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (context) => const _WatchAdConfirmDialog(),
+    );
+    if (confirmed == true && context.mounted) {
+      await context.push(AppRoutes.rewardedAd);
+    }
   }
 
   Future<void> _showGoldKeyProgress(BuildContext context, WidgetRef ref) async {
@@ -439,6 +454,179 @@ class _GoldKeyProgressSheet extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The "watch ad, earn +100 Coin" warning dialog (user instruction) — a
+/// centered alert rather than a bottom sheet, since the request was
+/// specifically for a "uyarı penceresi". Single gold button; tapping outside
+/// the dialog dismisses it without navigating anywhere (no separate cancel
+/// button was requested).
+class _WatchAdConfirmDialog extends StatelessWidget {
+  const _WatchAdConfirmDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+      child: GlassPanel(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              PhosphorIconsFill.coin,
+              color: GamePalette.recordGold,
+              size: 34,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              l10n.watchAdConfirmMessage,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.paper,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 18),
+            _StartChoiceButton(
+              label: Text(l10n.watchAdConfirmButton),
+              prominent: true,
+              onTap: () => Navigator.of(context).pop(true),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Wraps the home header's coin `_TopChip` and adds a quick "+N" pop-up
+/// animation whenever [goldKeyCount] increases (e.g. after watching a
+/// rewarded ad) — kept local to this one widget so the effect never leaks
+/// into any other coin-count display in the app (user instruction: "sadece
+/// ana menüdeki coin sayısının belirtildiği pencerede gerçekleşsin").
+class _CoinChip extends ConsumerStatefulWidget {
+  const _CoinChip({required this.goldKeyCount, required this.onTap});
+
+  final int goldKeyCount;
+  final VoidCallback onTap;
+
+  @override
+  ConsumerState<_CoinChip> createState() => _CoinChipState();
+}
+
+class _CoinChipState extends ConsumerState<_CoinChip> {
+  int? _gainAmount;
+  int _gainGeneration = 0;
+
+  @override
+  void didUpdateWidget(covariant _CoinChip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final diff = widget.goldKeyCount - oldWidget.goldKeyCount;
+    if (diff > 0) {
+      setState(() {
+        _gainAmount = diff;
+        _gainGeneration++;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        _TopChip(
+          icon: PhosphorIconsFill.coin,
+          iconColor: GamePalette.recordGold,
+          label: '${widget.goldKeyCount}',
+          onTap: widget.onTap,
+        ),
+        if (_gainAmount != null)
+          Positioned(
+            top: -16,
+            right: 8,
+            child: _CoinGainBadge(
+              key: ValueKey(_gainGeneration),
+              amount: _gainAmount!,
+              onCompleted: () {
+                if (mounted) setState(() => _gainAmount = null);
+              },
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// A quick "+N" pop that scales/floats up and fades out on its own — user
+/// instruction: "çok hızlı bir şekilde" ekleme animasyonu, so this runs in
+/// under a second and needs no external driving beyond mounting.
+class _CoinGainBadge extends StatefulWidget {
+  const _CoinGainBadge({
+    required super.key,
+    required this.amount,
+    required this.onCompleted,
+  });
+
+  final int amount;
+  final VoidCallback onCompleted;
+
+  @override
+  State<_CoinGainBadge> createState() => _CoinGainBadgeState();
+}
+
+class _CoinGainBadgeState extends State<_CoinGainBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 750),
+    );
+    unawaited(_controller.forward().whenComplete(widget.onCompleted));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          final t = _controller.value;
+          final appear = (t / 0.15).clamp(0.0, 1.0);
+          final fade = t < 0.5 ? 1.0 : 1 - ((t - 0.5) / 0.5).clamp(0.0, 1.0);
+          return Opacity(
+            opacity: fade,
+            child: Transform.translate(
+              offset: Offset(0, -20 * t),
+              child: Transform.scale(scale: 0.5 + 0.6 * appear, child: child),
+            ),
+          );
+        },
+        child: Text(
+          '+${widget.amount}',
+          style: const TextStyle(
+            color: GamePalette.recordGold,
+            fontWeight: FontWeight.bold,
+            fontSize: 17,
+            shadows: [Shadow(color: Colors.black87, blurRadius: 5)],
           ),
         ),
       ),

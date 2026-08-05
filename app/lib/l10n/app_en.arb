@@ -3,6 +3,8 @@
 
   "rewardedAdChip": "Rewarded Ad",
   "adNotReady": "Ad isn't ready yet, try again shortly.",
+  "watchAdConfirmMessage": "Watch Ad and Earn +100 Coins.",
+  "watchAdConfirmButton": "Watch Ad",
   "classicModeButton": "Classic Mode",
   "statFramed": "Framed",
   "statFrameless": "Frameless",

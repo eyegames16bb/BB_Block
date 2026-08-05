@@ -5,6 +5,7 @@ import 'package:bb_block/core/routing/app_router.dart';
 import 'package:bb_block/features/board/domain/entities/board.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
 import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
+import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
 import 'package:bb_block/features/persistence/domain/player_progress.dart';
 import 'package:bb_block/features/persistence/domain/saved_round.dart';
 import 'package:flutter/material.dart';
@@ -111,10 +112,45 @@ void main() {
     await tester.pump();
 
     await tester.tap(find.text('Ödüllü Reklam'));
+    await tester.pumpAndSettle();
+
+    // The new confirm dialog (user instruction) sits in front of the ad
+    // screen now — confirm it before the ad itself is expected to appear.
+    expect(find.text('Reklam İzle ve +100 Coin Kazan.'), findsOneWidget);
+    await tester.tap(find.text('Reklam İzle'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
+
+  testWidgets(
+      'a Gold Coin gain (e.g. from a rewarded ad) shows a quick +N pop-up '
+      'over the home screen coin chip, which fades away on its own (user '
+      'instruction)', (tester) async {
+    await tester.pumpWidget(appWith());
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+
+    const before = GoldKeyConstants.startingGoldKeyCount;
+    const after = before + GoldKeyConstants.rewardedAdCoins;
+    expect(find.text('$before'), findsOneWidget);
+    expect(find.textContaining('+'), findsNothing);
+
+    final context = tester.element(find.text('Klasik Mod'));
+    await ProviderScope.containerOf(
+      context,
+    ).read(playerProgressControllerProvider.notifier).grantGoldKey();
+    await tester.pump();
+
+    expect(find.text('$after'), findsOneWidget);
+    expect(find.text('+${GoldKeyConstants.rewardedAdCoins}'), findsOneWidget);
+
+    // The pop-up is a self-driven, sub-second animation — it disappears on
+    // its own without any further state change.
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(find.text('+${GoldKeyConstants.rewardedAdCoins}'), findsNothing);
+    expect(find.text('$after'), findsOneWidget);
   });
 
   testWidgets(
