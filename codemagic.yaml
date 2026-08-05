@@ -184,6 +184,17 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.bbblock.bb_block # keep in sync with BUNDLE_ID above
+    integrations:
+      # References an "App Store Connect" integration configured in the
+      # Codemagic dashboard (Team settings → Integrations → Apple
+      # Developer Portal / App Store Connect), using the
+      # bb_block_app_store_connect env var group's API key above — NOT the
+      # same thing as that group itself. Codemagic's `auth: integration`
+      # publishing mode (below) requires this reference to exist with this
+      # exact name, or the whole file fails YAML validation. The name
+      # `bb_block_asc` is not special — it just has to match whatever name
+      # is given to the integration when it's created in the dashboard.
+      app_store_connect: bb_block_asc
     triggering:
       events:
         - tag
