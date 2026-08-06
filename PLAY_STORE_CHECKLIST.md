@@ -9,7 +9,7 @@ bekleyenler ⚠️, henüz hiç ele alınmamış (bu denetimin kapsamı dışın
 - ✅ **R8/ProGuard/minify/shrinkResources** — bu oturumda açıldı, GERÇEK bir release build + emülatör smoke-test ile doğrulandı.
 - ✅ **Dart obfuscation (`--obfuscate --split-debug-info`)** — gerçek bir build ile denendi ve başarılı oldu; `build/symbols/` sembolleri üretildi (bu build'e özel, her release'de yeniden üretilmeli ve arşivlenmeli).
 - ✅ **Android izinleri minimal** — release manifestinde dangerous permission yok (Aşama 4'te doğrulandı).
-- ⚠️ **`applicationId` hâlâ `com.bbblock.bb_block` placeholder'ı** — gerçek ters-domain gerekli, Play Console'da bir kez seçilince DEĞİŞTİRİLEMEZ, dikkatli seçilmeli.
+- ⚠️ **`applicationId` hâlâ `com.eyegames.bbblock` placeholder'ı** — gerçek ters-domain gerekli, Play Console'da bir kez seçilince DEĞİŞTİRİLEMEZ, dikkatli seçilmeli.
 - ⚠️ **minSdk/targetSdk/compileSdk `flutter.*` üzerinden geliyor** — bu KASITLI ve doğru (Flutter'ın kendi konvansiyonu), ama Codemagic'te (Aşama 12) Flutter SDK sürümünün kendisinin pinlenmesi gerekiyor.
 
 ## Reklam / Üçüncü Parti SDK
@@ -32,4 +32,4 @@ bekleyenler ⚠️, henüz hiç ele alınmamış (bu denetimin kapsamı dışın
 2. `build/symbols/`'ı release sürüm numarasıyla eşleşecek şekilde arşivle (gelecekteki crash sembolikasyonu için).
 3. Play Console'da "Internal testing" track'ine yükleyip gerçek bir cihazda son bir kez test et.
 4. Data safety formunu doldur (AdMob + Supabase'in `ad_views` telemetrisi dahil).
-5. `com.bbblock.bb_block` yerine gerçek `applicationId`'yi Play Console'a kaydetmeden önce SON KEZ teyit et — geri dönüşü yok.
+5. `com.eyegames.bbblock` yerine gerçek `applicationId`'yi Play Console'a kaydetmeden önce SON KEZ teyit et — geri dönüşü yok.

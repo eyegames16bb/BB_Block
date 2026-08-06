@@ -1,4 +1,4 @@
-package com.bbblock.bb_block
+package com.eyegames.bbblock
 
 import io.flutter.embedding.android.FlutterActivity
 

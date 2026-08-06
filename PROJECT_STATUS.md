@@ -226,7 +226,7 @@ dosyanın üstünde "AŞAMA 12" başlığı altında, ORAYA Aşama 11 tamamlanma
 - **A8 (`intl: any`) ve A9 (stale TODO yorumu):** ikisi de araştırılınca **yanlış pozitif** çıktı —
   A8: `flutter_localizations` bu Flutter SDK sürümü için `intl`'i TAM sabitliyor
   (`C:\flutter\packages\flutter_localizations\pubspec.yaml`), `intl: any` bunun resmi/doğru karşılığı.
-  A9: `applicationId = com.bbblock.bb_block` CLAUDE.md'de zaten bilinen bir placeholder, TODO hâlâ
+  A9: `applicationId = com.eyegames.bbblock` CLAUDE.md'de zaten bilinen bir placeholder, TODO hâlâ
   geçerli. **İkisine de dokunulmadı**, rapor düzeltildi.
 - **A7 (`purchases_flutter` kullanılmıyor):** kullanıcı "bilmiyorum" dedi → **ertelendi**, dokunulmadı.
 
@@ -341,7 +341,7 @@ Bu bölüm audit'in KENDİSİ değil, önceki oturumlardan miras kalan proje bil
 detayı var, burada yalnızca audit'i hızlandıracak özet var:
 
 - BB Block: Flutter (stable) + Dart, Clean Architecture, Feature-First, Riverpod (codegen), go_router,
-  Freezed/json_serializable, very_good_analysis. `com.bbblock.bb_block` — **placeholder package ID**,
+  Freezed/json_serializable, very_good_analysis. `com.eyegames.bbblock` — **placeholder package ID**,
   mağaza gönderiminden önce gerçek ters-domain ile değiştirilmeli (CLAUDE.md'de zaten not edilmiş).
   Release signing ZATEN kurulu (`app/android/eyegames-upload-keystore.jks` + `key.properties`, gitignore'lu).
   Google AdMob **test** ID'leri kullanılıyor (gerçek ID'lerle değiştirilmeli). Supabase entegrasyonu VAR

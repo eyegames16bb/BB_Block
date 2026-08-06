@@ -7,7 +7,7 @@ olan, "ikisinden biri eksikse gönderim yapma" maddelerinin tek bir hızlı-kont
 ## Gönderim Öncesi Ortak Engelleyiciler
 
 - [ ] Gerçek AdMob App ID + ad-unit ID'leri (her iki platformda da hâlâ test değerleri)
-- [ ] Gerçek `applicationId`/Bundle Identifier (her iki platformda da hâlâ `com.bbblock.bb_block`)
+- [ ] Gerçek `applicationId`/Bundle Identifier (her iki platformda da hâlâ `com.eyegames.bbblock`)
 - [ ] `flutter analyze` temiz, `flutter test` 170/170 geçiyor (bu oturumda doğrulandı, her yeni
       değişiklikten sonra tekrar çalıştırılmalı)
 - [ ] Gizlilik politikası URL'si her iki mağaza konsoluna da girildi (`eyegames.net/gizlilik-politikasi`)

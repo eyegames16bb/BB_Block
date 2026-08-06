@@ -10,7 +10,7 @@ eder — gerçek bir archive/build denemesi HİÇ yapılamadı.
 |---|---|
 | Privacy Manifest (`PrivacyInfo.xcprivacy`) | ✅ Oluşturuldu, Xcode projesine bağlandı (statik doğrulama) — ⚠️ gerçek Xcode uyumu doğrulanmadı |
 | App Tracking Transparency | ✅ Bu oturumda bağlandı (`AdMobAdsService.init()`), ATT AdMob'dan önce isteniyor |
-| Bundle Identifier | ⚠️ `com.bbblock.bb_block` placeholder'ı — Android'deki `applicationId` ile aynı sorun |
+| Bundle Identifier | ⚠️ `com.eyegames.bbblock` placeholder'ı — Android'deki `applicationId` ile aynı sorun |
 | AdMob App ID | ⚠️ Hâlâ Google'ın test değeri (`Info.plist`'teki `GADApplicationIdentifier`) |
 | Release signing | ⬜ Bu denetimin kapsamında incelenmedi (Android tarafı gibi bir keystore/provisioning profile denetimi yapılmadı — Apple Developer hesabı/sertifikaları gerektirir) |
 | Orientation | ⚠️ Hem portrait hem landscape açık (`Info.plist`) — portrait-only kilit bir ürün kararı, teknik zorunluluk değil (A13) |

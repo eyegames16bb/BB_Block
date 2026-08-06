@@ -9,7 +9,7 @@
 | Signing | ✅ `android/eyegames-upload-keystore.jks` + `key.properties` (gitignore'lu), `apksigner verify` ile doğrulanmış |
 | R8/ProGuard/minify/shrinkResources | ✅ Bu oturumda açıldı (`build.gradle.kts` + `proguard-rules.pro`) |
 | Dart obfuscation | ✅ `--obfuscate --split-debug-info` ile gerçek build alındı, çalıştı |
-| `applicationId` | ⚠️ Hâlâ `com.bbblock.bb_block` (placeholder) — Play Console'a kayıttan ÖNCE değiştirilmeli, sonra değiştirilemez |
+| `applicationId` | ⚠️ Hâlâ `com.eyegames.bbblock` (placeholder) — Play Console'a kayıttan ÖNCE değiştirilmeli, sonra değiştirilemez |
 | AdMob App ID | ⚠️ Hâlâ Google'ın test değeri (`ca-app-pub-3940256099942544~...`) |
 | minSdk/targetSdk/compileSdk | ✅ `flutter.*` üzerinden — Flutter'ın kendi konvansiyonu (bilinçli, sabitlenmedi) |
 | İzinler | ✅ Release manifestinde dangerous permission yok |

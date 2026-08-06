@@ -46,6 +46,6 @@ merceğinden bir konsolide görünüm.
 | Madde | Kim yapabilir |
 |---|---|
 | Gerçek AdMob App ID + ad-unit ID'leri (Android+iOS) | Yalnızca kullanıcı — AdMob console erişimi gerekli |
-| Gerçek `applicationId`/`namespace` (`com.bbblock.bb_block` yerine) | Yalnızca kullanıcı — ürün kararı |
+| Gerçek `applicationId`/`namespace` (`com.eyegames.bbblock` yerine) | Yalnızca kullanıcı — ürün kararı |
 | Vercel Production'da `CRON_SECRET` set etmek | Yalnızca kullanıcı — Vercel hesap erişimi gerekli |
 | iOS Privacy Manifest'in Xcode'un "Generate Privacy Report" aracıyla teyidi | Yalnızca kullanıcı — Mac/Xcode gerekli, bu denetim Windows'ta yapıldı |

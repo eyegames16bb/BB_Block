@@ -8,8 +8,16 @@ sınırları (Xcode/Mac yok) yüzünden. Hiçbiri "unutuldu" değil — hepsi ka
 
 1. **AdMob App ID + ad-unit ID'leri hâlâ Google'ın test değerleri** (`A1`, CRITICAL) — Android
    manifest, iOS Info.plist, `admob_ads_service.dart`. AdMob console'undan gerçek ID gerekiyor.
-2. **`applicationId`/`namespace` hâlâ `com.bbblock.bb_block` placeholder'ı** — gerçek ters-domain
-   kullanıcının ürün kararı.
+2. ~~`applicationId`/`namespace` hâlâ placeholder'ı~~ **ÇÖZÜLDÜ (2026-08-05, Codemagic kurulumu
+   sırasında)** — kullanıcı "kullanıcı görmeyecekse fark etmez, sen seç" dedi, `com.eyegames.bbblock`
+   seçildi (yayıncı EYE Games'in alan adına dayanan standart `.com` ters-domain konvansiyonu).
+   `app/android/app/build.gradle.kts` (namespace+applicationId), Kotlin kaynak dizini
+   (`com/bbblock/bb_block/` → `com/eyegames/bbblock/`), iOS `project.pbxproj`'daki TÜM
+   `PRODUCT_BUNDLE_IDENTIFIER` girdileri (önceden Android'den FARKLI bir değerdi —
+   `com.bbblock.bbBlock`, kendi ayrı bir tutarsızlıktı, bu düzeltmeyle ikisi de aynı oldu) ve
+   `codemagic.yaml`'daki `PACKAGE_NAME`/`BUNDLE_ID`/`bundle_identifier` hep birlikte güncellendi.
+   **Play Console'da uygulama kaydı bu isimle AÇILMADAN önce** yapıldı — yani bu, Play Console'un
+   kalıcı/değiştirilemez paket-adı kısıtlamasına takılmadan yapılan doğru sıradaki bir değişiklik.
 3. **Vercel Production'da `CRON_SECRET` set edilmemiş olabilir** (`B1`) — kod tarafı fail-closed
    yapıldı ama gerçek değerin Vercel'e girilmesi yalnızca kullanıcı yapabilir.
 

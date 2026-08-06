@@ -86,7 +86,7 @@ workflows:
         - bb_block_google_play # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
       vars:
         FLUTTER_APP_DIR: *flutter_app_dir
-        PACKAGE_NAME: "com.bbblock.bb_block" # ⚠️ placeholder — see KNOWN_LIMITATIONS.md item 2. Update here AND in android/app/build.gradle.kts (applicationId) together, they must always match.
+        PACKAGE_NAME: "com.eyegames.bbblock" # real org id (see KNOWN_LIMITATIONS.md item 2) — must always match android/app/build.gradle.kts (applicationId) if either ever changes.
       android_signing:
         # References a keystore uploaded to Codemagic under this exact
         # reference name (Team settings > Code signing identities >
@@ -180,10 +180,10 @@ workflows:
         - bb_block_app_store_connect # APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_KEY_IDENTIFIER, APP_STORE_CONNECT_PRIVATE_KEY
       vars:
         FLUTTER_APP_DIR: *flutter_app_dir
-        BUNDLE_ID: "com.bbblock.bb_block" # ⚠️ placeholder — must match Info.plist's PRODUCT_BUNDLE_IDENTIFIER and the App Store Connect app record. See KNOWN_LIMITATIONS.md item 2.
+        BUNDLE_ID: "com.eyegames.bbblock" # real org id (see KNOWN_LIMITATIONS.md item 2) — must match Xcode's PRODUCT_BUNDLE_IDENTIFIER (project.pbxproj) and the App Store Connect app record.
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.bbblock.bb_block # keep in sync with BUNDLE_ID above
+        bundle_identifier: com.eyegames.bbblock # keep in sync with BUNDLE_ID above
     integrations:
       # References an "App Store Connect" integration configured in the
       # Codemagic dashboard (Team settings → Integrations → Apple

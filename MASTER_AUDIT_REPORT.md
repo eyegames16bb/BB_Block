@@ -49,7 +49,7 @@ yapılacağına karar vermek için temel oluşturur.
 
 | # | Bulgu | Konum | Durum |
 |---|---|---|---|
-| A9 | `android/app/build.gradle.kts:40` — stok Flutter şablon yorumu (`// TODO: Specify your own unique Application ID`). | | ❌ **DÜZELTME: yanlış pozitifti.** `applicationId = "com.bbblock.bb_block"` CLAUDE.md'de zaten bilinen bir **placeholder** olarak belgeli ("mağaza gönderiminden önce gerçek ters-domain ile değiştirilmeli") — yani TODO hâlâ doğru/geçerli, yanıltıcı değil. Silinmedi; gerçek applicationId değişimi Aşama 5'in (kullanıcının gerçek ters-domain'ini gerektiren) kapsamında. |
+| A9 | `android/app/build.gradle.kts:40` — stok Flutter şablon yorumu (`// TODO: Specify your own unique Application ID`). | | ❌ **DÜZELTME: yanlış pozitifti.** `applicationId = "com.eyegames.bbblock"` CLAUDE.md'de zaten bilinen bir **placeholder** olarak belgeli ("mağaza gönderiminden önce gerçek ters-domain ile değiştirilmeli") — yani TODO hâlâ doğru/geçerli, yanıltıcı değil. Silinmedi; gerçek applicationId değişimi Aşama 5'in (kullanıcının gerçek ters-domain'ini gerektiren) kapsamında. |
 | A10 | Keystore (`eyegames-upload-keystore.jks`) ve `key.properties` başka hiçbir yerde yedeklenmiş görünmüyor — kaybedilirse uygulamanın gelecekteki güncellemeleri kalıcı olarak engellenir (operasyonel risk, kod değil). | | Bekliyor (kullanıcı aksiyonu) |
 | A11 | `assets/` toplam ~13.1 MB, hepsi sıkıştırılmamış PNG — WebP'ye çevirmek boyutu düşürebilir. | | Bekliyor — Aşama 3 |
 | A12 | iOS `UIBackgroundModes` yok — arkaplan ambient ses davranışının kasıtlı olduğunu doğrula. | | Bekliyor — Aşama 5 |
@@ -205,7 +205,7 @@ tespiti, debug/test kodu sızıntısı, ağ güvenliği (HTTPS/pinning), izinler
 | # | Bulgu | Neden bekliyor |
 |---|---|---|
 | A1 | AdMob App ID + ad-unit ID'leri hâlâ Google'ın herkese açık TEST değerleri. | Gerçek ID'ler AdMob console'undan (kullanıcının kendi hesabı) alınmalı — ben üretemem. `android/app/src/main/AndroidManifest.xml`, `ios/Runner/Info.plist` (`GADApplicationIdentifier`), `lib/core/services/ads/admob_ads_service.dart:18-21`. |
-| — | `applicationId`/`namespace` hâlâ `com.bbblock.bb_block` (placeholder). | Gerçek ters-domain (ör. `net.eyegames.bbblock`) kullanıcının kararı — CLAUDE.md'de zaten bilinen açık nokta. |
+| — | `applicationId`/`namespace` hâlâ `com.eyegames.bbblock` (placeholder). | Gerçek ters-domain (ör. `net.eyegames.bbblock`) kullanıcının kararı — CLAUDE.md'de zaten bilinen açık nokta. |
 | A13 | iOS hem portrait hem landscape açık. | Tasarım kararı (10x10 tahta oyunu için portrait-only kilit mantıklı olabilir ama bu bir ÜRÜN kararı, teknik zorunluluk değil) — Aşama 8 (UI Review) veya kullanıcı onayı bekliyor, kod DEĞİŞTİRİLMEDİ. |
 
 ---

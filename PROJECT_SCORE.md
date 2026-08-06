@@ -32,7 +32,7 @@ güncel duruma ihtiyaç varsa `MASTER_AUDIT_REPORT.md` ve `PROJECT_STATUS.md`'ye
 
 **1. Play Store'a bugün gönderilebilir mi?**
 Hayır, henüz değil — iki net engel var: (a) gerçek AdMob App ID + ad-unit ID'leri (şu an Google'ın
-test ID'leri, mağaza incelemesi bunu reddedebilir), (b) `applicationId` hâlâ `com.bbblock.bb_block`
+test ID'leri, mağaza incelemesi bunu reddedebilir), (b) `applicationId` hâlâ `com.eyegames.bbblock`
 placeholder'ı (gerçek bir ters-domain olmalı). Bu iki madde tamamlanınca (ikisi de kullanıcı
 aksiyonu/verisi gerektiriyor, ben üretemem) teknik altyapı (signing, minify, obfuscate, R8) zaten
 hazır ve GERÇEK bir release build + emülatör smoke-testiyle doğrulandı.
