@@ -202,6 +202,18 @@ workflows:
         - pattern: "v*"
           include: true
     scripts:
+      - name: Disable Swift Package Manager (google_mobile_ads doesn't support it yet)
+        script: |
+          # `flutter build ipa` auto-migrates the iOS project to Swift
+          # Package Manager unless this is set first — confirmed via a real
+          # failed build: google_mobile_ads only supports CocoaPods, while
+          # webview_flutter_wkwebview (one of its own transitive
+          # dependencies) ships an SPM manifest, so `pod install` refused
+          # to proceed with "A dependency conflict has occurred" once SPM
+          # integration had already been added. This is a global `flutter`
+          # CLI setting (not project-scoped), so it must run before any
+          # other step that touches the iOS project.
+          flutter config --no-enable-swift-package-manager
       - name: Get Flutter packages
         script: |
           cd $FLUTTER_APP_DIR
