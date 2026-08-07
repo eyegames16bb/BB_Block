@@ -218,22 +218,28 @@ workflows:
         script: |
           cd $FLUTTER_APP_DIR
           flutter test
+      - name: Set up code signing settings on Xcode project
+        script: |
+          # `ios_signing`/`integrations.app_store_connect` above only make
+          # Codemagic FETCH the certificate + provisioning profile — this is
+          # the separate, required step that actually WIRES them into the
+          # Xcode project (DEVELOPMENT_TEAM, CODE_SIGN_STYLE, provisioning
+          # profile UUID) and writes an ExportOptions.plist Codemagic's own
+          # CLI tool generates under $HOME (builder's home on the Mac
+          # instance). Confirmed necessary — a first real run without this
+          # step failed with "No valid code signing certificates were
+          # found" from `flutter build ipa` even though a matching
+          # certificate/profile pair already existed in Codemagic's code
+          # signing identities.
+          xcode-project use-profiles
       - name: Build release IPA (minified, obfuscated)
         script: |
           cd $FLUTTER_APP_DIR
-          # `ios_signing` above should make Codemagic auto-inject the right
-          # provisioning profile/signing identity for a plain `flutter
-          # build ipa`. UNVERIFIED (see the workflow's top-level warning) —
-          # if this specific step fails on the first real run, Codemagic's
-          # own troubleshooting docs for "flutter build ipa code signing"
-          # are the next stop; it may need an explicit
-          # `--export-options-plist` pointed at a profile Codemagic
-          # generates under `$CM_BUILD_DIR` (exact path would only be known
-          # from a real build log, not asserted here as fact).
           flutter build ipa --release \
             --build-name="${CM_TAG#v}" \
             --build-number="$PROJECT_BUILD_NUMBER" \
             --obfuscate --split-debug-info=build/symbols \
+            --export-options-plist=/Users/builder/export_options.plist \
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
     artifacts:
