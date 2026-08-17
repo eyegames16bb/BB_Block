@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
@@ -65,7 +64,7 @@ class _ScreenShakeState extends State<ScreenShake>
   }
 
   void _onShake() {
-    unawaited(_controller.forward(from: 0));
+    _controller.forward(from: 0);
   }
 
   @override

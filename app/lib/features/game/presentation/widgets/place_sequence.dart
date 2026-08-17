@@ -66,7 +66,7 @@ class _PlaceSequenceState extends State<PlaceSequence>
 
   Future<void> _run() async {
     // Place + Glow start together.
-    unawaited(_glow.forward());
+    _glow.forward();
     await _pop.animateWith(SpringSimulation(_placeSpring, 0.72, 1, 8));
     if (!mounted) return;
 

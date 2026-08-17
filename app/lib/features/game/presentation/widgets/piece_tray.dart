@@ -275,7 +275,7 @@ class _GrabbedPieceState extends ConsumerState<_GrabbedPiece>
   @override
   void initState() {
     super.initState();
-    unawaited(_lift.animateWith(SpringSimulation(_liftSpring, 0.85, 1, 6)));
+    _lift.animateWith(SpringSimulation(_liftSpring, 0.85, 1, 6));
   }
 
   @override

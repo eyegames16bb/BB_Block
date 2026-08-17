@@ -1115,7 +1115,7 @@ class _VictoryFlashState extends State<_VictoryFlash>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    unawaited(_controller.forward());
+    _controller.forward();
     _opacity = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0, end: 0.55), weight: 15),
       TweenSequenceItem(tween: Tween(begin: 0.55, end: 0), weight: 85),

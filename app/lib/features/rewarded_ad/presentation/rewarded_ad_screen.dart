@@ -43,7 +43,7 @@ class _RewardedAdScreenState extends ConsumerState<RewardedAdScreen>
   void initState() {
     super.initState();
     _spinController = AnimationController(vsync: this, duration: _adDuration);
-    unawaited(_spinController.forward());
+    _spinController.forward();
     _closeableTimer = Timer(_adDuration, () {
       if (mounted) setState(() => _phase = _AdPhase.closeable);
     });

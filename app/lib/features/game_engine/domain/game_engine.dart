@@ -270,9 +270,10 @@ class GameEngine {
 
     final tray = [
       for (final piece in _session.tray)
-        piece.isUsed
-            ? piece
-            : piece.copyWith(shape: _rotateCommand.execute(piece.shape)),
+        if (piece.isUsed)
+          piece
+        else
+          piece.copyWith(shape: _rotateCommand.execute(piece.shape)),
     ];
 
     _session = _session.copyWith(

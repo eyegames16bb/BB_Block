@@ -50,9 +50,10 @@ Board _boardWithFilled(Set<GridPosition> filled) {
   final cells = [
     for (var row = 0; row < _boardSize; row++)
       for (var column = 0; column < _boardSize; column++)
-        filled.contains(GridPosition(row: row, column: column))
-            ? CellState.filled
-            : CellState.empty,
+        if (filled.contains(GridPosition(row: row, column: column)))
+          CellState.filled
+        else
+          CellState.empty,
   ];
   return Board(size: _boardSize, cells: cells);
 }

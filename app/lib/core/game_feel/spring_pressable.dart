@@ -82,10 +82,8 @@ class _SpringPressableState extends ConsumerState<SpringPressable>
 
   void _release() {
     if (widget.onTap == null) return;
-    unawaited(
-      _controller.animateWith(
-        SpringSimulation(_releaseSpring, _controller.value, 0, -1),
-      ),
+    _controller.animateWith(
+      SpringSimulation(_releaseSpring, _controller.value, 0, -1),
     );
   }
 
