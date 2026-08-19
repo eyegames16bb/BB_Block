@@ -52,5 +52,12 @@
 	<string>ca-app-pub-3940256099942544~1458002511</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>Bu izin, size daha alakalı reklamlar göstermemize yardımcı olur.</string>
+	<!-- Declares export compliance directly in the binary so App Store
+	     Connect stops asking the "Missing Compliance" question on every
+	     single build. The app only uses standard HTTPS/TLS (the encryption
+	     built into iOS itself) — no proprietary/non-standard crypto — which
+	     is exactly the "exempt" case this key communicates. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
