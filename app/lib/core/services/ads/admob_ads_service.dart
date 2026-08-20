@@ -44,6 +44,16 @@ final class AdMobAdsService implements AdsService {
       // ATT prompt. `app_tracking_transparency` is iOS-only — the package's
       // own status/request calls are meaningless on Android, hence the guard.
       if (Platform.isIOS) {
+        // Real App Store rejection (Guideline 2.1, reviewed on physical
+        // iPhone/iPad hardware): calling requestTrackingAuthorization() this
+        // early — `adsServiceProvider` is read during the very first
+        // `BbBlockApp.build()`, before the app's UIWindow is guaranteed key
+        // and visible — makes iOS silently drop the prompt on real devices,
+        // even though it can work in simulators/some conditions. Apple's own
+        // guidance is to request only once the app is fully active; this
+        // delay is the standard, documented workaround for exactly this
+        // symptom.
+        await Future<void>.delayed(const Duration(seconds: 1));
         final status =
             await AppTrackingTransparency.trackingAuthorizationStatus;
         if (status == TrackingStatus.notDetermined) {
