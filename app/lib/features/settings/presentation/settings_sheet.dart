@@ -80,6 +80,13 @@ class SettingsSheet extends ConsumerWidget {
                         controller.setSoundEnabled(enabled: enabled),
                   ),
                   const SizedBox(height: 10),
+                  _ClassicBoardSizeRow(
+                    label: l10n.classicBoardSizeLabel,
+                    hasFrame: progress.classicHasFrame,
+                    onChanged: (hasFrame) =>
+                        controller.setClassicHasFrame(hasFrame: hasFrame),
+                  ),
+                  const SizedBox(height: 10),
                   _LanguageRow(
                     label: l10n.languageLabel,
                     languageCode: progress.languageCode,
@@ -294,6 +301,81 @@ class _LanguageRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return _SegmentedSettingRow(
+      icon: PhosphorIconsBold.globe,
+      label: label,
+      children: [
+        _SegmentOption(
+          label: 'TR',
+          selected: languageCode == 'tr',
+          onTap: () => onChanged('tr'),
+        ),
+        const SizedBox(width: 6),
+        _SegmentOption(
+          label: 'EN',
+          selected: languageCode == 'en',
+          onTap: () => onChanged('en'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Classic Mode's board size (8x8 framed / 10x10 frameless) — moved here
+/// from an every-launch home screen sheet (user instruction), styled to
+/// match `_LanguageRow` exactly ("Dil Seçimi" ayarına benzer ux). Defaults
+/// to 8x8 (`PlayerProgress.classicHasFrame`'s own default), and the prominent
+/// gold fill on the selected option is the same "belirgin sarı" treatment
+/// the language toggle already used.
+class _ClassicBoardSizeRow extends StatelessWidget {
+  const _ClassicBoardSizeRow({
+    required this.label,
+    required this.hasFrame,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool hasFrame;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return _SegmentedSettingRow(
+      icon: PhosphorIconsBold.gridFour,
+      label: label,
+      children: [
+        _SegmentOption(
+          label: l10n.classicBoardSize8x8,
+          selected: hasFrame,
+          onTap: () => onChanged(true),
+        ),
+        const SizedBox(width: 6),
+        _SegmentOption(
+          label: l10n.classicBoardSize10x10,
+          selected: !hasFrame,
+          onTap: () => onChanged(false),
+        ),
+      ],
+    );
+  }
+}
+
+/// Shared "icon + label + trailing segmented options" row shell used by both
+/// [_LanguageRow] and [_ClassicBoardSizeRow].
+class _SegmentedSettingRow extends StatelessWidget {
+  const _SegmentedSettingRow({
+    required this.icon,
+    required this.label,
+    required this.children,
+  });
+
+  final IconData icon;
+  final String label;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.06),
@@ -305,7 +387,7 @@ class _LanguageRow extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              PhosphorIconsBold.globe,
+              icon,
               color: AppColors.paper.withValues(alpha: 0.55),
               size: 20,
             ),
@@ -320,19 +402,7 @@ class _LanguageRow extends StatelessWidget {
                 ),
               ),
             ),
-            _LanguageOption(
-              code: 'tr',
-              label: 'TR',
-              selected: languageCode == 'tr',
-              onTap: () => onChanged('tr'),
-            ),
-            const SizedBox(width: 6),
-            _LanguageOption(
-              code: 'en',
-              label: 'EN',
-              selected: languageCode == 'en',
-              onTap: () => onChanged('en'),
-            ),
+            ...children,
           ],
         ),
       ),
@@ -340,15 +410,13 @@ class _LanguageRow extends StatelessWidget {
   }
 }
 
-class _LanguageOption extends StatelessWidget {
-  const _LanguageOption({
-    required this.code,
+class _SegmentOption extends StatelessWidget {
+  const _SegmentOption({
     required this.label,
     required this.selected,
     required this.onTap,
   });
 
-  final String code;
   final String label;
   final bool selected;
   final VoidCallback onTap;

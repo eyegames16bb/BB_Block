@@ -15,9 +15,11 @@
   "goldKeyMilestoneInfo": "Earn +100 Gold Coins every {perCycle} levels",
   "goldKeyMilestoneProgress": "{intoCycle} / {perCycle} levels completed — {remaining} levels until your next coins",
 
-  "frameSheetTitle": "Frame",
-  "frameChoiceWithFrame": "With Frame (8x8)",
-  "frameChoiceWithoutFrame": "No Frame (10x10)",
+  "classicBoardSizeLabel": "Classic Mode Setting",
+  "classicBoardSize8x8": "8x8",
+  "classicBoardSize10x10": "10x10",
+  "classicStartSheetHint": "You can change the board size in Settings!",
+  "classicStartButton": "({size}) Play Classic Mode",
 
   "levelSheetTitle": "Level Mode",
   "levelSheetHint": "*Complete a Line Between the Two Stars and Earn +250 Points!",

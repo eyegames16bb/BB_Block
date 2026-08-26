@@ -116,19 +116,20 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Future<void> _startClassic(BuildContext context, WidgetRef ref) async {
-    // Revised user instruction: the Çerçeve Var/Yok sheet is always shown
-    // now, every time — it's no longer skipped even if a round is already
-    // in progress. What DOES persist per variant is the round itself: once
-    // the player picks a frame option, whichever round (if any) was saved
-    // for *that specific variant* resumes exactly as it was; each variant
-    // keeps a fully independent in-progress round (and, as before, its own
-    // separate high score).
-    final hasFrame = await showModalBottomSheet<bool>(
+    // Board size (framed 8x8 / frameless 10x10) is now a persistent Settings
+    // choice (user instruction) instead of an every-launch sheet — read the
+    // fresh value rather than trusting whatever `progress` the calling
+    // button was built with, same staleness concern as `_startLevel`.
+    final progress = await ref.read(playerProgressControllerProvider.future);
+    if (!context.mounted) return;
+    final hasFrame = progress.classicHasFrame;
+
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => const _FrameChoiceSheet(),
+      builder: (context) => _ClassicStartSheet(hasFrame: hasFrame),
     );
-    if (hasFrame == null || !context.mounted) return;
+    if (confirmed != true || !context.mounted) return;
 
     final savedRound = ref.read(roundSaveRepositoryProvider).load(
           GameModeType.classic,
@@ -634,12 +635,23 @@ class _CoinGainBadgeState extends State<_CoinGainBadge>
   }
 }
 
-class _FrameChoiceSheet extends StatelessWidget {
-  const _FrameChoiceSheet();
+/// Classic Mode's start confirmation — the actual board-size choice now
+/// lives in Settings (user instruction), so this just confirms the current
+/// choice and points the player there if they want to change it. `hasFrame`
+/// drives the button's own label ("(8x8)" / "(10x10)") so it always reflects
+/// whichever size is currently selected.
+class _ClassicStartSheet extends StatelessWidget {
+  const _ClassicStartSheet({required this.hasFrame});
+
+  final bool hasFrame;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final size = hasFrame
+        ? l10n.classicBoardSize8x8
+        : l10n.classicBoardSize10x10;
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -648,20 +660,19 @@ class _FrameChoiceSheet extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                l10n.frameSheetTitle,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(color: AppColors.paper),
+                l10n.classicStartSheetHint,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.paper,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              const SizedBox(height: 16),
-              _SheetChoiceButton(
-                label: l10n.frameChoiceWithFrame,
+              const SizedBox(height: 18),
+              _StartChoiceButton(
+                label: Text(l10n.classicStartButton(size)),
+                prominent: true,
                 onTap: () => Navigator.of(context).pop(true),
-              ),
-              const SizedBox(height: 12),
-              _SheetChoiceButton(
-                label: l10n.frameChoiceWithoutFrame,
-                onTap: () => Navigator.of(context).pop(false),
               ),
             ],
           ),
@@ -848,37 +859,6 @@ class _CoinCostLabel extends StatelessWidget {
   }
 }
 
-class _SheetChoiceButton extends StatelessWidget {
-  const _SheetChoiceButton({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SpringPressable(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppColors.paper,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _RoundIconButton extends StatelessWidget {
   const _RoundIconButton({required this.icon, required this.onTap});

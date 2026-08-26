@@ -68,6 +68,12 @@ class PlayerProgressController extends _$PlayerProgressController {
         await _persist(current.copyWith(languageCode: languageCode));
       });
 
+  Future<void> setClassicHasFrame({required bool hasFrame}) =>
+      _serialized(() async {
+        final current = state.value ?? const PlayerProgress();
+        await _persist(current.copyWith(classicHasFrame: hasFrame));
+      });
+
   Future<void> recordClassicScore({
     required bool hasFrame,
     required int score,

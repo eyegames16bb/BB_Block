@@ -25,9 +25,14 @@
     }
   },
 
-  "frameSheetTitle": "Çerçeve",
-  "frameChoiceWithFrame": "Çerçeve Var (8x8)",
-  "frameChoiceWithoutFrame": "Çerçeve Yok (10x10)",
+  "classicBoardSizeLabel": "Klasik Mod Ayarı",
+  "classicBoardSize8x8": "8x8",
+  "classicBoardSize10x10": "10x10",
+  "classicStartSheetHint": "Ayarlar kısmında oyun alanını değiştirebilsin!",
+  "classicStartButton": "({size}) Klasik Mod İle Oyna",
+  "@classicStartButton": {
+    "placeholders": { "size": { "type": "String" } }
+  },
 
   "levelSheetTitle": "Level Mod",
   "levelSheetHint": "*İki Yıldız Arasında Tamamlama Yap ve +250 Puan Kazan!",

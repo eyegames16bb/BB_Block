@@ -55,9 +55,9 @@ void main() {
   });
 
   testWidgets(
-      'Klasik Mod always shows the Çerçeve Var/Yok sheet, even with a '
-      'saved round already in progress (revised user instruction), and '
-      'resumes whichever variant is chosen', (tester) async {
+      'Klasik Mod shows a start-confirmation sheet reflecting the current '
+      'board-size setting (now a Settings choice, not an every-launch '
+      "picker), and resumes that variant's saved round", (tester) async {
     addTearDown(() => appRouter.go(AppRoutes.home));
 
     final board = Board.framed();
@@ -79,6 +79,8 @@ void main() {
         ),
       );
 
+    // `PlayerProgress.classicHasFrame` defaults to true (8x8) — matches the
+    // saved round above.
     await tester.pumpWidget(appWith(roundRepo: roundRepo));
     await tester.pump(const Duration(seconds: 3));
     await tester.pump();
@@ -86,11 +88,13 @@ void main() {
     await tester.tap(find.text('Klasik Mod'));
     await tester.pumpAndSettle();
 
-    // The sheet shows every time now — a saved round no longer skips it.
-    expect(find.text('Çerçeve Var (8x8)'), findsOneWidget);
-    expect(find.text('Çerçeve Yok (10x10)'), findsOneWidget);
+    expect(
+      find.text('Ayarlar kısmında oyun alanını değiştirebilsin!'),
+      findsOneWidget,
+    );
+    expect(find.text('(8x8) Klasik Mod İle Oyna'), findsOneWidget);
 
-    await tester.tap(find.text('Çerçeve Var (8x8)'));
+    await tester.tap(find.text('(8x8) Klasik Mod İle Oyna'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
 
@@ -99,6 +103,34 @@ void main() {
     // (equally caught-up, since 321 already beats a 0 persisted best)
     // record badge show it.
     expect(find.text('321'), findsWidgets);
+  });
+
+  testWidgets(
+      'changing the Classic Mode board size in Settings changes the start '
+      "sheet's label the next time Klasik Mod is tapped (user "
+      'instruction: persistent Settings choice, not asked every launch)',
+      (tester) async {
+    addTearDown(() => appRouter.go(AppRoutes.home));
+
+    await tester.pumpWidget(appWith());
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+
+    await tester.tap(find.byIcon(PhosphorIcons.gear));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Klasik Mod Ayarı'), findsOneWidget);
+    await tester.tap(find.text('10x10'));
+    await tester.pumpAndSettle();
+
+    // Close the sheet, then open Klasik Mod's start confirmation.
+    await tester.tapAt(const Offset(200, 50));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Klasik Mod'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('(10x10) Klasik Mod İle Oyna'), findsOneWidget);
   });
 
   testWidgets(

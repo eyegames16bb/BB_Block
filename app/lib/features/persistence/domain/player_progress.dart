@@ -38,6 +38,11 @@ abstract class PlayerProgress with _$PlayerProgress {
     // tutorial; a fresh install has this false again since it's the same
     // local save blob everything else here lives in.
     @Default(false) bool tutorialCompleted,
+    // Classic Mode's board size, now a persistent Settings choice instead of
+    // an every-launch sheet (user instruction) — `true` (8x8, framed) is the
+    // default for a fresh install. `HomeScreen._startClassic` reads this
+    // directly instead of asking.
+    @Default(true) bool classicHasFrame,
   }) = _PlayerProgress;
 
   factory PlayerProgress.fromJson(Map<String, dynamic> json) =>
