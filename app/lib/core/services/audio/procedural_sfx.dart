@@ -571,13 +571,43 @@ Uint8List _render({
 
       final raw = switch (layer.type) {
         _WaveType.sine => sin(2 * pi * frequency * localTime),
-        _WaveType.square =>
-          sin(2 * pi * frequency * localTime) >= 0 ? 1.0 : -1.0,
+        // Soft-clipped instead of a hard +1/-1 square (user instruction:
+        // the SFX read as harsh/tinny/crackly) — a true square wave is an
+        // infinite stack of odd harmonics, which is exactly what reads as
+        // "tinny"/"cırtlak" on a small phone speaker. Driving the sine hard
+        // into a `x/(1+|x|)` soft-clip keeps the punchy, more-than-a-sine
+        // character a square wave was chosen for, but rounds the corners
+        // instead of leaving them infinitely sharp.
+        _WaveType.square => _softClip(sin(2 * pi * frequency * localTime) * 3),
         _WaveType.noise => random!.nextDouble() * 2 - 1,
       };
 
       mix[index] += raw * layer.amplitude * envelope;
     }
+  }
+
+  // A gentle one-pole low-pass over the finished mix (user instruction:
+  // "dolgunlaştır, cızırtıları ve tizliği düzelt") — smooths the sharp
+  // sample-to-sample jumps (square-wave corners, raw noise) that read as
+  // harsh/crackly at this sample rate, without noticeably softening the
+  // low-frequency "body" of each sound. Applied *before* normalization so
+  // the smoothing doesn't fight the peak target.
+  const lowPassAlpha = 0.5;
+  var lowPassState = 0.0;
+  for (var i = 0; i < mix.length; i++) {
+    lowPassState += lowPassAlpha * (mix[i] - lowPassState);
+    mix[i] = lowPassState;
+  }
+
+  // A short linear fade over the very last few samples prevents an abrupt
+  // discontinuity at the buffer's end from reading as a click/pop — the
+  // envelope's own decay already approaches (but doesn't always reach)
+  // zero by the last sample.
+  final fadeSamples = min(64, totalSamples);
+  for (var i = 0; i < fadeSamples; i++) {
+    final index = totalSamples - fadeSamples + i;
+    if (index < 0) continue;
+    mix[index] *= (fadeSamples - i) / fadeSamples;
   }
 
   var peak = 0.0;
@@ -589,8 +619,11 @@ Uint8List _render({
   // clipping — a recipe with a single quiet layer (e.g. pieceRotate's lone
   // sine at amplitude 0.3) would otherwise end up far quieter than one
   // with several stacked layers, even though both should read as
-  // comparably "present" one-shot SFX.
-  final scale = peak > 0 ? 0.92 / peak : 1.0;
+  // comparably "present" one-shot SFX. Target lowered slightly from 0.92 to
+  // 0.85 (user instruction: cleaner, less clipped-sounding mix) — still
+  // plenty loud, with a little more headroom before the low-pass/soft-clip
+  // shaping above can push a sample toward the ceiling.
+  final scale = peak > 0 ? 0.85 / peak : 1.0;
 
   final samples16 = Int16List(totalSamples);
   for (var i = 0; i < totalSamples; i++) {
@@ -599,6 +632,11 @@ Uint8List _render({
 
   return _wavBytes(samples16);
 }
+
+/// `x / (1 + |x|)` — a cheap, allocation-free soft clipper. Maps all of
+/// `(-∞, ∞)` into `(-1, 1)` with a smooth (not hard-cornered) curve, unlike
+/// a true `±1` square wave.
+double _softClip(double x) => x / (1 + x.abs());
 
 Uint8List _wavBytes(Int16List samples) {
   final dataLength = samples.length * 2;

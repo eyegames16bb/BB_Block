@@ -1,20 +1,17 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:bb_block/core/game_feel/drag_feel_controller.dart';
 import 'package:bb_block/core/providers/audio_providers.dart';
 import 'package:bb_block/core/providers/game_feel_providers.dart';
 import 'package:bb_block/core/providers/haptics_providers.dart';
 import 'package:bb_block/core/services/audio/sound_effect.dart';
 import 'package:bb_block/core/services/haptics/haptics_service.dart';
 import 'package:bb_block/features/board/domain/entities/board.dart';
-import 'package:bb_block/features/board/domain/entities/piece_shape.dart';
 import 'package:bb_block/features/board/domain/services/placement_validator.dart';
 import 'package:bb_block/features/game/presentation/widgets/game_palette.dart';
 import 'package:bb_block/features/game/presentation/widgets/piece_view.dart';
 import 'package:bb_block/features/game_engine/domain/tray_piece.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/physics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// The three-piece tray. Each unused piece is draggable onto the board; the
@@ -37,7 +34,10 @@ class PieceTray extends ConsumerWidget {
     required this.tray,
     required this.dragCellSize,
     required this.board,
-    this.trayMaxCellSize = 26,
+    // The display *area* stays the same size (user instruction, revised) —
+    // only the pieces rendered inside it shrink, so all three comfortably
+    // fit with room to spare instead of crowding/clipping the slot.
+    this.trayMaxCellSize = 20,
     super.key,
   });
 
@@ -202,8 +202,13 @@ class PieceTray extends ConsumerWidget {
         // No grid math anywhere reads the raw pointer directly — it only
         // ever sees `details.offset`, i.e. HN's position — satisfying the
         // "all placement math goes through HN" requirement.
+        // "Blok Taşıma Hissiyatı" — user report: the projection reads as
+        // slightly left-leaning relative to the finger. A smaller x anchor
+        // offset shifts the projected shape right for the same pointer
+        // position (see the math above) — `0.42` instead of an exact half
+        // is a small, deliberate rightward nudge, not a full re-centering.
         dragAnchorStrategy: (draggable, context, position) => Offset(
-          feedbackWidth / 2,
+          feedbackWidth * 0.42,
           GamePalette.dragLiftPixels + feedbackHeight,
         ),
         onDragStarted: () {
@@ -217,119 +222,22 @@ class PieceTray extends ConsumerWidget {
           );
         },
         onDragEnd: (_) => ref.read(dragFeelControllerProvider).reset(),
-        feedback: _GrabbedPiece(shape: piece.shape, cellSize: dragCellSize),
+        // The piece itself is now fully invisible for the whole drag (user
+        // instruction: from the moment it's picked up, nothing should
+        // render on screen for it — only the board's own ghost preview,
+        // built from `_onDragMove`'s reported HN position, shows where it
+        // would land). This placeholder is otherwise real — its size still
+        // matches the shape (matters for `dragAnchorStrategy`'s own HN math
+        // above, which reasons about the feedback's geometry, not its
+        // paint) — it's just fully transparent.
+        feedback: IgnorePointer(
+          child: SizedBox(width: feedbackWidth, height: feedbackHeight),
+        ),
         childWhenDragging: Opacity(
           opacity: GamePalette.draggingSlotOpacity,
           child: resting,
         ),
         child: resting,
-      ),
-    );
-  }
-}
-
-/// The piece as it appears while being dragged. Beyond the resting 105%
-/// scale + soft golden glow + drop shadow ("Block Grab"), this now plays:
-///
-/// - **Block Lift Animation** (user instruction, 120-150ms): a short spring
-///   pop-in on mount — every drag creates a brand-new `_GrabbedPiece`
-///   instance, so `initState` firing is exactly "the instant this piece got
-///   picked up," matching `PlaceSequence`'s existing pop-in approach for
-///   placed tiles.
-/// - **Block Drag Animation** (user instruction, "spring hissi"): while the
-///   drag continues, this listens to [DragFeelController] for a small
-///   physicality tilt derived purely from the pointer's own movement — see
-///   that controller's doc comment for why it deliberately does *not* also
-///   pull the piece toward the board's grid anymore (a "Drag Motion &
-///   Placement Pipeline Refactor" fix — that pull was the actual cause of
-///   a reported "feels magnetically caught on cells" bug). The tilt is a
-///   rotation layered on top of Flutter's own raw pointer-following
-///   position; the piece's actual on-screen *position* always stays a pure,
-///   unmodified 1:1 copy of the finger.
-class _GrabbedPiece extends ConsumerStatefulWidget {
-  const _GrabbedPiece({required this.shape, required this.cellSize});
-
-  final PieceShape shape;
-  final double cellSize;
-
-  @override
-  ConsumerState<_GrabbedPiece> createState() => _GrabbedPieceState();
-}
-
-class _GrabbedPieceState extends ConsumerState<_GrabbedPiece>
-    with SingleTickerProviderStateMixin {
-  // Slightly underdamped, like every other spring in this codebase's Game
-  // Feel Engine (see `place_sequence.dart`) — a hair of overshoot past 1.0
-  // reads as "popped up," not just "resized."
-  static final _liftSpring = SpringDescription.withDampingRatio(
-    mass: 1,
-    stiffness: 420,
-    ratio: 0.65,
-  );
-
-  late final AnimationController _lift = AnimationController.unbounded(
-    vsync: this,
-    value: 0.85,
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    _lift.animateWith(SpringSimulation(_liftSpring, 0.85, 1, 6));
-  }
-
-  @override
-  void dispose() {
-    _lift.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final feel = ref.watch(dragFeelControllerProvider);
-    // Performance (user instruction): this whole subtree repaints on every
-    // drag-move frame (tilt tracking the finger) — a `RepaintBoundary`
-    // keeps that repaint isolated to just the floating piece's own layer
-    // inside `Draggable`'s overlay entry, rather than bubbling a repaint
-    // request up through whatever ancestor layer it would otherwise share.
-    return RepaintBoundary(
-      child: AnimatedBuilder(
-        animation: Listenable.merge([_lift, feel]),
-        builder: (context, child) {
-          final liftValue = _lift.value;
-          final glow = liftValue.clamp(0.0, 1.0);
-          // No `Transform.translate` here — the piece's on-screen position
-          // is intentionally left as a pure, unmodified copy of whatever
-          // `Draggable` itself computed from the raw pointer (see
-          // `DragFeelController`'s doc comment). Only rotation (tilt) and
-          // scale (the lift pop) layer on top.
-          return Transform.rotate(
-            angle: feel.tiltRadians,
-            child: Transform.scale(
-              scale: liftValue.clamp(0.0, 1.3) * 1.05,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: GamePalette.recordGold.withValues(
-                        alpha: 0.45 * glow,
-                      ),
-                      blurRadius: 18,
-                      spreadRadius: 2,
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.35 * glow),
-                      blurRadius: 10,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: child,
-              ),
-            ),
-          );
-        },
-        child: PieceView(shape: widget.shape, cellSize: widget.cellSize),
       ),
     );
   }

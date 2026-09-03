@@ -74,6 +74,31 @@ class PlayerProgressController extends _$PlayerProgressController {
         await _persist(current.copyWith(classicHasFrame: hasFrame));
       });
 
+  Future<void> setShowModeNotesEnabled({required bool enabled}) =>
+      _serialized(() async {
+        final current = state.value ?? const PlayerProgress();
+        await _persist(current.copyWith(showModeNotesEnabled: enabled));
+      });
+
+  /// Writes back the Level Mode booster ledger after every engine change
+  /// (use or refill) — see `PlayerProgress.levelRotateCharges`'s doc
+  /// comment. Called from `GameController._apply` for every Level Mode
+  /// event, not just booster ones, so it always mirrors the live session.
+  Future<void> syncLevelBoosterCharges({
+    required int rotate,
+    required int swap,
+    required int singleCellRemove,
+  }) => _serialized(() async {
+        final current = state.value ?? const PlayerProgress();
+        await _persist(
+          current.copyWith(
+            levelRotateCharges: rotate,
+            levelSwapCharges: swap,
+            levelSingleCellRemoveCharges: singleCellRemove,
+          ),
+        );
+      });
+
   Future<void> recordClassicScore({
     required bool hasFrame,
     required int score,

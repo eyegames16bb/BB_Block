@@ -3,7 +3,7 @@
 
   "rewardedAdChip": "Ödüllü Reklam",
   "adNotReady": "Reklam henüz hazır değil, birazdan tekrar deneyin.",
-  "watchAdConfirmMessage": "Reklam İzle ve +100 Coin Kazan.",
+  "watchAdConfirmMessage": "Reklam izle ve 100 Coin kazan!",
   "watchAdConfirmButton": "Reklam İzle",
   "classicModeButton": "Klasik Mod",
   "statFramed": "Çerçeveli",
@@ -25,7 +25,7 @@
     }
   },
 
-  "classicBoardSizeLabel": "Klasik Mod Ayarı",
+  "classicBoardSizeLabel": "Klasik Mod",
   "classicBoardSize8x8": "8x8",
   "classicBoardSize10x10": "10x10",
   "classicStartSheetHint": "Ayarlar kısmında oyun alanını değiştirebilsin!",
@@ -46,9 +46,18 @@
   "settingsTitle": "Ayarlar",
   "soundLabel": "Ses",
   "languageLabel": "Dil",
+  "modeNotesLabel": "Açıklama Notları",
   "aboutSectionTitle": "Hakkında",
   "publisherCreditLabel": "Oyun Yayın ve Firması",
   "replayTutorialLabel": "Öğreticiyi Tekrar Oynat",
+  "footerNoteClassic": "Oyun alanı değişikliğini \"Ayarlar\" kısmında yapabilirsin.",
+  "footerNoteLevel": "İki yıldız arasında tamamlama yap ve +250 puan kazan.",
+  "boosterRefillHint": "Tamamlayıcıları yenilemek için",
+  "tipColors": "\"Yeşil\" blok alanda, \"Kırmızı\" blok alanda değil.",
+  "tipBoosterRefill": "Sıfırlanan tamamlayıcılara tıkla, satın al ve kullan.",
+  "tipDaily": "Her gün oyna ve skorlarını geliştir.",
+  "tipEconomic": "Tamamlayıcıları ekonomik kullan.",
+  "tipCoin": "\"Coin\" butonuna tıkladığında ödüllü reklam izleyip altın kazanabilirsin.",
 
   "boosterRotate": "Yön",
   "boosterSwap": "Değiştir",

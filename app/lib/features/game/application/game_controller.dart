@@ -13,6 +13,7 @@ import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
 import 'package:bb_block/features/game_mode/domain/level_mode_strategy.dart';
 import 'package:bb_block/features/game_mode/domain/round_outcome.dart';
 import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
+import 'package:bb_block/features/persistence/domain/player_progress.dart';
 import 'package:bb_block/features/persistence/domain/saved_round.dart';
 import 'package:bb_block/features/piece_generation/domain/weighted_piece_generator.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -78,20 +79,21 @@ class GameController extends _$GameController {
     }
 
     _config = config;
-    // Booster charges are attempt-scoped now, not a persistent resource
-    // (see `PlayerProgress`'s doc comment): unlocked means one charge of
-    // every booster for this round only, seeded straight from the choice
-    // made at `HomeScreen`'s start sheet — never read back from
-    // `PlayerProgress`, and never written back to it either.
-    final unlocked =
-        config.mode == GameModeType.level && config.levelBoostersUnlocked;
-    final charges = unlocked ? BoosterConstants.unlockedChargesPerRound : 0;
+    // Booster charges are a persistent, per-player ledger shared by *both*
+    // modes now (user instruction, revised again — previously Level Mode
+    // only) — a brand-new install starts at PlayerProgress's own defaults
+    // (3/1/1), and every subsequent round, Classic or Level, continues from
+    // wherever the last one left off (see
+    // `PlayerProgress.levelRotateCharges`'s doc comment and `_apply`, which
+    // writes this ledger back after every change in either mode).
+    final progress = ref.read(playerProgressControllerProvider).value ??
+        const PlayerProgress();
     _engine = GameEngine(
       mode: _strategyFor(config),
       generator: WeightedPieceGenerator(),
-      initialRotateCharges: charges,
-      initialSwapCharges: charges,
-      initialSingleCellRemoveCharges: charges,
+      initialRotateCharges: progress.levelRotateCharges,
+      initialSwapCharges: progress.levelSwapCharges,
+      initialSingleCellRemoveCharges: progress.levelSingleCellRemoveCharges,
     );
     // Saved the instant the round exists, not just after the first move —
     // an app kill before any placement would otherwise resume into nothing.
@@ -109,6 +111,30 @@ class GameController extends _$GameController {
 
   void removeCell(GridPosition position) =>
       _apply(_engine.removeCell(position));
+
+  /// Level Mode only: spends [GoldKeyConstants.actionCostCoins] to add a
+  /// fresh batch of Rotate charges — one of three separate purchase entry
+  /// points (user instruction: each booster is bought on its own, not all
+  /// three together), offered only once Rotate itself reaches zero. A no-op
+  /// (and no coins spent) if the balance is insufficient.
+  Future<void> purchaseRotateBoosters() =>
+      _purchaseBooster(_engine.refillRotateBoosters);
+
+  /// Same as [purchaseRotateBoosters], for Swap.
+  Future<void> purchaseSwapBoosters() =>
+      _purchaseBooster(_engine.refillSwapBoosters);
+
+  /// Same as [purchaseRotateBoosters], for Single Cell Remove.
+  Future<void> purchaseSingleCellRemoveBoosters() =>
+      _purchaseBooster(_engine.refillSingleCellRemoveBoosters);
+
+  Future<void> _purchaseBooster(List<GameEvent> Function() apply) async {
+    final spent = await ref
+        .read(playerProgressControllerProvider.notifier)
+        .spendGoldKeyForBoosters();
+    if (!spent) return;
+    _apply(apply());
+  }
 
   /// Classic Mode only: spends a Gold Key to revive a round that just ended
   /// in "no valid move" — user instruction, offered alongside the existing
@@ -140,6 +166,21 @@ class GameController extends _$GameController {
             ),
       );
     }
+
+    // The booster ledger is persistent and shared by both modes now (see
+    // `PlayerProgress`'s doc comment) — every change (a use or a purchase,
+    // in either Classic or Level) is written straight back so the next
+    // round, whatever mode it's in, resumes from exactly wherever this one
+    // left off.
+    unawaited(
+      ref
+          .read(playerProgressControllerProvider.notifier)
+          .syncLevelBoosterCharges(
+            rotate: state.rotateCharges,
+            swap: state.swapCharges,
+            singleCellRemove: state.singleCellRemoveCharges,
+          ),
+    );
 
     // The saved round is the single source of truth for "resume where I
     // left off" — it tracks whatever the engine's actual outcome is right

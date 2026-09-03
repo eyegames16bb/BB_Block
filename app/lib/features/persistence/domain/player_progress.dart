@@ -43,6 +43,19 @@ abstract class PlayerProgress with _$PlayerProgress {
     // default for a fresh install. `HomeScreen._startClassic` reads this
     // directly instead of asking.
     @Default(true) bool classicHasFrame,
+    // Toggles the mode-specific footer note shown at the bottom-left of the
+    // in-game panel (user instruction: "Açıklama Notları") — on by default.
+    @Default(true) bool showModeNotesEnabled,
+    // Level Mode's booster charges are now a persistent, per-player ledger
+    // (user instruction, revised again — previously attempt-scoped) instead
+    // of being reseeded every round: only a brand-new install starts here
+    // (level 1) at 3/1/1, and from then on whatever's left over (or bought
+    // via the empty-booster refill sheet) carries straight into the next
+    // level. `GameController` reads these to seed a fresh round and writes
+    // them back after every change; Classic Mode never touches these.
+    @Default(3) int levelRotateCharges,
+    @Default(1) int levelSwapCharges,
+    @Default(1) int levelSingleCellRemoveCharges,
   }) = _PlayerProgress;
 
   factory PlayerProgress.fromJson(Map<String, dynamic> json) =>

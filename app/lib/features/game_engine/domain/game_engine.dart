@@ -23,12 +23,12 @@ import 'package:bb_block/features/piece_generation/domain/piece_generator.dart';
 ///
 /// It imports nothing from Flutter — it is pure Dart and fully unit-testable.
 ///
-/// Classic Mode never has boosters (the GDD is explicit: "Bu oyun modunda
-/// tamamlayıcı olmayacaktır") — its caller simply never passes initial
-/// charges. Level Mode boosters are a *persistent* resource (see
-/// `PlayerProgress`): the engine itself doesn't know that: it just starts a
-/// session with whatever charge counts the caller hands it and decrements
-/// them as they're used. `GameController` is the layer that reads/writes
+/// Boosters are a *persistent* resource shared by both modes now (user
+/// instruction, overriding the GDD's original Classic-Mode-has-none rule —
+/// see `PlayerProgress`): the engine itself doesn't know that, it just
+/// starts a session with whatever charge counts the caller hands it and
+/// decrements them as they're used. `GameController` is the layer that
+/// reads/writes
 /// those counts from `PlayerProgress` before/after each engine call.
 class GameEngine {
   GameEngine({
@@ -326,6 +326,38 @@ class GameEngine {
       GameEvent.cellRemoved(position: position),
       ..._reevaluateOutcome(),
     ];
+  }
+
+  /// Level Mode only: adds [BoosterConstants.initialRotateCharges] more
+  /// Rotate charges — `GameController` is what actually spends the Gold
+  /// Coin that gates this, offered only once Rotate itself reaches zero
+  /// (separate purchase per booster — user instruction).
+  List<GameEvent> refillRotateBoosters() {
+    if (_session.isOver) return const [GameEvent.invalidMove()];
+    _session = _session.copyWith(
+      rotateCharges:
+          _session.rotateCharges + BoosterConstants.initialRotateCharges,
+    );
+    return const [GameEvent.trayRefilled()];
+  }
+
+  /// Same as [refillRotateBoosters], for Swap.
+  List<GameEvent> refillSwapBoosters() {
+    if (_session.isOver) return const [GameEvent.invalidMove()];
+    _session = _session.copyWith(
+      swapCharges: _session.swapCharges + BoosterConstants.initialSwapCharges,
+    );
+    return const [GameEvent.trayRefilled()];
+  }
+
+  /// Same as [refillRotateBoosters], for Single Cell Remove.
+  List<GameEvent> refillSingleCellRemoveBoosters() {
+    if (_session.isOver) return const [GameEvent.invalidMove()];
+    _session = _session.copyWith(
+      singleCellRemoveCharges: _session.singleCellRemoveCharges +
+          BoosterConstants.initialSingleCellRemoveCharges,
+    );
+    return const [GameEvent.trayRefilled()];
   }
 
   /// Classic Mode only: revives a round that just ended in

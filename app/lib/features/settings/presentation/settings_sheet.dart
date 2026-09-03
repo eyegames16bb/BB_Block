@@ -1,8 +1,5 @@
-import 'dart:async';
-
 import 'package:bb_block/core/constants/app_constants.dart';
 import 'package:bb_block/core/providers/url_launcher_providers.dart';
-import 'package:bb_block/core/routing/app_router.dart';
 import 'package:bb_block/core/theme/app_theme.dart';
 import 'package:bb_block/core/theme/glass_panel.dart';
 import 'package:bb_block/features/game/presentation/widgets/game_palette.dart';
@@ -11,14 +8,22 @@ import 'package:bb_block/features/persistence/domain/player_progress.dart';
 import 'package:bb_block/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
 
 /// Shown from the gear icon on both the main menu and the game screen.
 class SettingsSheet extends ConsumerWidget {
-  const SettingsSheet({super.key});
+  const SettingsSheet({this.showBoardSizeOption = true, super.key});
 
-  static Future<void> show(BuildContext context) {
+  // The Classic Mode board-size row (user instruction) only belongs on the
+  // main menu's copy of this sheet — mid-round (Classic or Level, from the
+  // in-game gear icon) it's hidden, since changing it wouldn't apply to the
+  // round already in progress anyway.
+  final bool showBoardSizeOption;
+
+  static Future<void> show(
+    BuildContext context, {
+    bool showBoardSizeOption = true,
+  }) {
     return showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -27,7 +32,8 @@ class SettingsSheet extends ConsumerWidget {
       // SingleChildScrollView keeps it from overflowing on short screens
       // instead of silently clipping.
       isScrollControlled: true,
-      builder: (context) => const SettingsSheet(),
+      builder: (context) =>
+          SettingsSheet(showBoardSizeOption: showBoardSizeOption),
     );
   }
 
@@ -79,13 +85,15 @@ class SettingsSheet extends ConsumerWidget {
                     onChanged: (enabled) =>
                         controller.setSoundEnabled(enabled: enabled),
                   ),
-                  const SizedBox(height: 10),
-                  _ClassicBoardSizeRow(
-                    label: l10n.classicBoardSizeLabel,
-                    hasFrame: progress.classicHasFrame,
-                    onChanged: (hasFrame) =>
-                        controller.setClassicHasFrame(hasFrame: hasFrame),
-                  ),
+                  if (showBoardSizeOption) ...[
+                    const SizedBox(height: 10),
+                    _ClassicBoardSizeRow(
+                      label: l10n.classicBoardSizeLabel,
+                      hasFrame: progress.classicHasFrame,
+                      onChanged: (hasFrame) =>
+                          controller.setClassicHasFrame(hasFrame: hasFrame),
+                    ),
+                  ],
                   const SizedBox(height: 10),
                   _LanguageRow(
                     label: l10n.languageLabel,
@@ -93,7 +101,15 @@ class SettingsSheet extends ConsumerWidget {
                     onChanged: controller.setLanguageCode,
                   ),
                   const SizedBox(height: 10),
-                  _ReplayTutorialRow(label: l10n.replayTutorialLabel),
+                  _SettingToggle(
+                    icon: PhosphorIconsBold.info,
+                    label: l10n.modeNotesLabel,
+                    value: progress.showModeNotesEnabled,
+                    onChanged: (enabled) => controller
+                        .setShowModeNotesEnabled(enabled: enabled),
+                  ),
+                  const SizedBox(height: 18),
+                  _ScoreboardSection(progress: progress),
                   const SizedBox(height: 18),
                   Text(
                     l10n.aboutSectionTitle,
@@ -177,54 +193,89 @@ class _CreditLink extends ConsumerWidget {
   }
 }
 
-/// Replays the first-launch interactive tutorial on demand (user
-/// instruction — re-added after an earlier removal in this same session, so
-/// the user can re-test it without needing a fresh install each time).
-/// Closes this sheet first — the tutorial is a full-screen experience, not
-/// something to layer a modal on top of.
-class _ReplayTutorialRow extends StatelessWidget {
-  const _ReplayTutorialRow({required this.label});
+/// The Classic Mode high-score row — moved here from the home screen (user
+/// instruction) so removing the home screen's own scoreboard doesn't lose
+/// the information. Only the two Classic Mode variants (8x8/10x10) show —
+/// the Level counter stays off this panel per instruction ("Level sayısı
+/// gözükmesin").
+class _ScoreboardSection extends StatelessWidget {
+  const _ScoreboardSection({required this.progress});
 
+  final PlayerProgress progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+        child: Row(
+          children: [
+            Expanded(
+              child: _ScoreStat(
+                icon: PhosphorIconsFill.crown,
+                value: '${progress.classicHighScoreFramed}',
+                label: l10n.statFramed,
+              ),
+            ),
+            Container(
+              width: 1,
+              height: 38,
+              color: Colors.white.withValues(alpha: 0.16),
+            ),
+            Expanded(
+              child: _ScoreStat(
+                icon: PhosphorIconsFill.crown,
+                value: '${progress.classicHighScoreFrameless}',
+                label: l10n.statFrameless,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScoreStat extends StatelessWidget {
+  const _ScoreStat({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String value;
   final String label;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: () {
-        Navigator.of(context).pop();
-        unawaited(context.push(AppRoutes.tutorial));
-      },
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          child: Row(
-            children: [
-              Icon(
-                PhosphorIconsBold.playCircle,
-                color: AppColors.paper.withValues(alpha: 0.55),
-                size: 20,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    color: AppColors.paper,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: GamePalette.recordGold, size: 16),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            color: AppColors.paper,
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
           ),
         ),
-      ),
+        Text(
+          label,
+          style: TextStyle(
+            color: AppColors.paper.withValues(alpha: 0.65),
+            fontSize: 11,
+          ),
+        ),
+      ],
     );
   }
 }

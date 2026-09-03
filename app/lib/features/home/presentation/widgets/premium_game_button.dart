@@ -27,9 +27,11 @@ class PremiumGameButton extends StatelessWidget {
   final Color glossDeep;
   final VoidCallback? onTap;
 
-  static const double _height = 72;
-  static const double _outerRadius = 22;
-  static const double _borderWidth = 8;
+  // Shrunk from 72 (user instruction: mode buttons should be a bit smaller).
+  static const double _height = 60;
+  static const double _outerRadius = 20;
+  // Halved from 8 (user instruction: thin the brown wood frame by half).
+  static const double _borderWidth = 4;
 
   @override
   Widget build(BuildContext context) {
@@ -114,17 +116,17 @@ class PremiumGameButton extends StatelessWidget {
                     Icon(
                       icon,
                       color: Colors.white,
-                      size: 24,
+                      size: 20,
                       shadows: const [
                         Shadow(color: AppColors.ink, blurRadius: 3),
                       ],
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Text(
                       label,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 20,
+                        fontSize: 17,
                         fontWeight: FontWeight.bold,
                         shadows: [
                           Shadow(

@@ -98,6 +98,28 @@ class _BoardGridState extends ConsumerState<BoardGrid> {
   // of a new drag never reads a stale delta from the previous one.
   Offset? _lastDragLocalOffset;
 
+  // A lagged/eased copy of the raw HN position (user instruction: the
+  // ghost's movement across cells should feel stiffer/slower, not track
+  // the finger 1:1) — each move event nudges this a fraction of the way
+  // toward the real position instead of jumping straight to it. This is a
+  // *continuous* ease, never a discontinuous per-cell jump, so it can't
+  // reintroduce the "magnetically caught on cells" bug documented on
+  // `DragFeelController` (that bug came from a snap target that itself
+  // jumped a whole cell size at a time; this just delays how quickly the
+  // reference point catches up to the finger, smoothly, every frame).
+  Offset? _smoothedLocal;
+  // "Blok Taşıma Hissiyatı" tuning (user-defined scale, established this
+  // session): 0 = this update's own baseline (`_dragEase` at 0.5, i.e. the
+  // very first version of this ease), -100 = the original pre-ease
+  // behavior (raw 1:1 tracking, `_dragEase` == 1.0 — no lag at all).
+  // Negative values are softer/faster, positive would be stiffer/slower.
+  // User instruction: drop the feel to -10 (one tenth of the way from 0 to
+  // -100) — a deliberately small nudge softer/faster than the 0-point,
+  // not a full reversion.
+  //   ease(level) = 0.5 + (-level / 100) * 0.5,  level <= 0
+  //   ease(-10)   = 0.5 + (10/100) * 0.5 = 0.55
+  static const double _dragEase = 0.55;
+
   // "Invalid Placement" bounce (user instruction) — a short shake-and-fade
   // played exactly where a rejected drop landed, layered on top of (never
   // replacing) the engine's own `GameEvent.invalidMove` feedback. Purely
@@ -768,7 +790,14 @@ class _BoardGridState extends ConsumerState<BoardGrid> {
     // instruction: all grid math goes through HN). It is read-only here —
     // Grid Detection never writes back to it.
     final cellSize = box.size.width / widget.board.size;
-    final local = box.globalToLocal(details.offset);
+    final rawLocal = box.globalToLocal(details.offset);
+    // Ease toward the raw position instead of snapping straight to it
+    // (user instruction — see `_smoothedLocal`'s doc comment).
+    final previousSmoothed = _smoothedLocal;
+    final local = previousSmoothed == null
+        ? rawLocal
+        : Offset.lerp(previousSmoothed, rawLocal, _dragEase)!;
+    _smoothedLocal = local;
     final shape = widget.tray[details.data].shape;
     final anchor = _anchorFromLocal(local, cellSize, shape);
     if (anchor == null) {
@@ -873,6 +902,7 @@ class _BoardGridState extends ConsumerState<BoardGrid> {
   /// somewhere the board isn't tracking.
   void _onDragLeave() {
     _lastDragLocalOffset = null;
+    _smoothedLocal = null;
     ref.read(dragFeelControllerProvider).reset();
     setState(() => _preview = null);
   }
@@ -969,6 +999,7 @@ class _BoardGridState extends ConsumerState<BoardGrid> {
       widget.onPlace(preview.trayIndex, preview.anchor);
     }
     _lastDragLocalOffset = null;
+    _smoothedLocal = null;
     ref.read(dragFeelControllerProvider).reset();
     setState(() => _preview = null);
   }
@@ -993,7 +1024,9 @@ class _BoardGridState extends ConsumerState<BoardGrid> {
         child: TweenAnimationBuilder<double>(
           key: ValueKey('reject-${bounce.generation}'),
           tween: Tween(begin: 0, end: 1),
-          duration: const Duration(milliseconds: 260),
+          // Sharpened (user instruction: crisper drop feedback) — shorter
+          // and a wider shake amplitude than before.
+          duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
           onEnd: () {
             if (mounted) setState(() => _rejectBounce = null);
@@ -1004,7 +1037,7 @@ class _BoardGridState extends ConsumerState<BoardGrid> {
             final shakeT = (t / 0.6).clamp(0.0, 1.0);
             final shakeDecay = 1 - shakeT;
             final dx =
-                math.sin(shakeT * math.pi * 4) * cellSize * 0.15 * shakeDecay;
+                math.sin(shakeT * math.pi * 4) * cellSize * 0.2 * shakeDecay;
             final opacity = 1 - ((t - 0.4) / 0.6).clamp(0.0, 1.0);
             return Opacity(
               opacity: opacity,

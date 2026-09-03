@@ -21,6 +21,7 @@ import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
 import 'package:bb_block/features/game_mode/domain/round_outcome.dart';
 import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
 import 'package:bb_block/features/persistence/domain/player_progress.dart';
+import 'package:bb_block/features/rewarded_ad/presentation/widgets/watch_ad_confirm_sheet.dart';
 import 'package:bb_block/features/settings/presentation/settings_sheet.dart';
 import 'package:bb_block/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
@@ -51,7 +52,10 @@ class _GameScreenState extends ConsumerState<GameScreen>
   int _scorePopupGeneration = 0;
   int _scorePopupDelta = 0;
 
-  bool get _boostersVisible => widget.config.mode == GameModeType.level;
+  // Boosters are now shared by both modes (user instruction: a single
+  // persistent ledger — see `PlayerProgress.levelRotateCharges`'s doc
+  // comment) — always shown.
+  bool get _boostersVisible => true;
 
   @override
   void initState() {
@@ -79,18 +83,42 @@ class _GameScreenState extends ConsumerState<GameScreen>
     setState(() => _isPaused = true);
   }
 
+  Future<void> _showBoosterRefillSheet({
+    required BuildContext context,
+    required GameLaunchConfig config,
+    required int goldKeyCount,
+    required IconData icon,
+    required String label,
+    required int amount,
+    required VoidCallback purchase,
+  }) async {
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _BoosterRefillSheet(
+        goldKeyCount: goldKeyCount,
+        icon: icon,
+        label: label,
+        amount: amount,
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    purchase();
+  }
+
   @override
   Widget build(BuildContext context) {
     final config = widget.config;
     final progressAsync = ref.watch(playerProgressControllerProvider);
 
-    // GameController seeds Level Mode's persistent booster charges from
-    // PlayerProgress synchronously the instant it first builds — wait for
-    // that load to actually finish before creating it, or a cold
-    // navigation could seed a fresh engine with fallback defaults instead
-    // of the player's real saved charges (which never gets corrected
-    // afterwards, since the engine is only built once per round).
-    if (config.mode == GameModeType.level && !progressAsync.hasValue) {
+    // GameController seeds the shared booster ledger from PlayerProgress
+    // synchronously the instant it first builds, for both modes now (user
+    // instruction) — wait for that load to actually finish before creating
+    // it, or a cold navigation could seed a fresh engine with fallback
+    // defaults instead of the player's real saved charges (which never
+    // gets corrected afterwards, since the engine is only built once per
+    // round).
+    if (!progressAsync.hasValue) {
       return const Scaffold(
         body: ImageBackground(
           assetPath: 'assets/images/game_background.png',
@@ -199,6 +227,55 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                       onRemovalTap: () => setState(
                                         () => _removalArmed = !_removalArmed,
                                       ),
+                                      onRotateEmptyTap: () =>
+                                          _showBoosterRefillSheet(
+                                        context: context,
+                                        config: config,
+                                        goldKeyCount: progress.goldKeyCount,
+                                        icon: PhosphorIconsBold
+                                            .arrowsClockwise,
+                                        label: AppLocalizations.of(context)!
+                                            .boosterRotate,
+                                        amount: BoosterConstants
+                                            .initialRotateCharges,
+                                        purchase: () => ref
+                                            .read(gameControllerProvider(
+                                                    config)
+                                                .notifier)
+                                            .purchaseRotateBoosters(),
+                                      ),
+                                      onSwapEmptyTap: () =>
+                                          _showBoosterRefillSheet(
+                                        context: context,
+                                        config: config,
+                                        goldKeyCount: progress.goldKeyCount,
+                                        icon: PhosphorIconsBold.swap,
+                                        label: AppLocalizations.of(context)!
+                                            .boosterSwap,
+                                        amount:
+                                            BoosterConstants.initialSwapCharges,
+                                        purchase: () => ref
+                                            .read(gameControllerProvider(
+                                                    config)
+                                                .notifier)
+                                            .purchaseSwapBoosters(),
+                                      ),
+                                      onRemovalEmptyTap: () =>
+                                          _showBoosterRefillSheet(
+                                        context: context,
+                                        config: config,
+                                        goldKeyCount: progress.goldKeyCount,
+                                        icon: PhosphorIconsBold.bomb,
+                                        label: AppLocalizations.of(context)!
+                                            .boosterErase,
+                                        amount: BoosterConstants
+                                            .initialSingleCellRemoveCharges,
+                                        purchase: () => ref
+                                            .read(gameControllerProvider(
+                                                    config)
+                                                .notifier)
+                                            .purchaseSingleCellRemoveBoosters(),
+                                      ),
                                     ),
                                   ],
                                   const SizedBox(height: 12),
@@ -225,7 +302,12 @@ class _GameScreenState extends ConsumerState<GameScreen>
                           ),
                         ),
                         const SizedBox(height: 12),
-                        _Footer(goldKeyCount: progress.goldKeyCount),
+                        _Footer(
+                          goldKeyCount: progress.goldKeyCount,
+                          mode: config.mode,
+                          notesEnabled: progress.showModeNotesEnabled,
+                          onCoinTap: () => confirmAndWatchAd(context),
+                        ),
                       ],
                     ),
                   ),
@@ -419,7 +501,7 @@ class _Header extends StatelessWidget {
         const SizedBox(width: 8),
         _RoundIconButton(
           icon: PhosphorIcons.gear,
-          onTap: () => SettingsSheet.show(context),
+          onTap: () => SettingsSheet.show(context, showBoardSizeOption: false),
         ),
       ],
     );
@@ -471,117 +553,187 @@ class _RecordBadge extends StatelessWidget {
   }
 }
 
-/// `.footer` from the reference mockup — the game title on the left,
-/// mirrored by [_GoldKeyFooterBadge] on the right in the `.shop-btn` spot.
-/// This game has no coin/shop economy, so the badge shows the real Gold Key
-/// balance instead of fabricating a currency display that leads nowhere.
+/// `.footer` from the reference mockup — a mode-specific description note
+/// on the left (user instruction, replacing the static "BB Block"/"PUZZLE"
+/// title), mirrored by [_GoldKeyFooterBadge] on the right in the
+/// `.shop-btn` spot, now tappable to bridge straight into the rewarded-ad
+/// screen (user instruction).
 class _Footer extends StatelessWidget {
-  const _Footer({required this.goldKeyCount});
+  const _Footer({
+    required this.goldKeyCount,
+    required this.mode,
+    required this.notesEnabled,
+    required this.onCoinTap,
+  });
 
   final int goldKeyCount;
+  final GameModeType mode;
+  final bool notesEnabled;
+  final VoidCallback onCoinTap;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final note = mode == GameModeType.classic
+        ? l10n.footerNoteClassic
+        : l10n.footerNoteLevel;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'BB Block',
-              style: TextStyle(
-                color: AppColors.paper.withValues(alpha: 0.85),
-                fontSize: 14,
-                shadows: const [
-                  Shadow(color: Colors.black54, blurRadius: 4),
-                ],
-              ),
+        if (notesEnabled)
+          Expanded(
+            // Multi-line, centered, word-wrapped text (user instruction —
+            // revised: exactly centered line-by-line, not left-started).
+            child: Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: _ModeFooterNote(defaultNote: note),
             ),
-            Text(
-              'PUZZLE',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColors.paper,
-                letterSpacing: 1,
-                shadows: const [
-                  Shadow(color: Colors.black54, blurRadius: 4),
-                ],
-              ),
-            ),
-          ],
-        ),
-        _GoldKeyFooterBadge(count: goldKeyCount),
+          )
+        else
+          const Spacer(),
+        _GoldKeyFooterBadge(count: goldKeyCount, onTap: onCoinTap),
       ],
     );
   }
 }
 
-class _GoldKeyFooterBadge extends StatelessWidget {
-  const _GoldKeyFooterBadge({required this.count});
+/// Cycles the footer note (user instruction) between [defaultNote] (shown
+/// first, and again every other 10-second window) and one of five rotating
+/// tips — a faint (fade) cross-fade at each swap, looping for as long as
+/// the round is on screen. `_tick` counts 10-second windows: even ticks
+/// show the default note, odd ticks show `tips[(tick ~/ 2) % tips.length]`
+/// — tick 1 → tip 0, tick 3 → tip 1, tick 5 → tip 2, and so on, wrapping
+/// back to tip 0 once every tip has had a turn.
+class _ModeFooterNote extends StatefulWidget {
+  const _ModeFooterNote({required this.defaultNote});
 
-  final int count;
+  final String defaultNote;
+
+  @override
+  State<_ModeFooterNote> createState() => _ModeFooterNoteState();
+}
+
+class _ModeFooterNoteState extends State<_ModeFooterNote> {
+  Timer? _timer;
+  int _tick = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) setState(() => _tick++);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [GamePalette.woodButtonLight, GamePalette.woodButtonDark],
+    final l10n = AppLocalizations.of(context)!;
+    final tips = [
+      l10n.tipColors,
+      l10n.tipBoosterRefill,
+      l10n.tipDaily,
+      l10n.tipEconomic,
+      l10n.tipCoin,
+    ];
+    final text = _tick.isOdd
+        ? tips[(_tick ~/ 2) % tips.length]
+        : widget.defaultNote;
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 500),
+      child: Text(
+        text,
+        key: ValueKey(text),
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: AppColors.paper.withValues(alpha: 0.9),
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          height: 1.3,
+          shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
         ),
-        border: Border.all(color: GamePalette.woodButtonBorder, width: 2),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(color: GamePalette.buttonLedge, offset: Offset(0, 3)),
-        ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: GamePalette.panelDark,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 3,
+    );
+  }
+}
+
+class _GoldKeyFooterBadge extends StatelessWidget {
+  const _GoldKeyFooterBadge({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SpringPressable(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [GamePalette.woodButtonLight, GamePalette.woodButtonDark],
+          ),
+          border: Border.all(color: GamePalette.woodButtonBorder, width: 2),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [
+            BoxShadow(color: GamePalette.buttonLedge, offset: Offset(0, 3)),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: GamePalette.panelDark,
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    PhosphorIconsFill.coin,
-                    color: GamePalette.recordGold,
-                    size: 14,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '$count',
-                    style: const TextStyle(
-                      color: AppColors.paper,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 3,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      PhosphorIconsFill.coin,
+                      color: GamePalette.recordGold,
+                      size: 14,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 4),
+                    Text(
+                      '$count',
+                      style: const TextStyle(
+                        color: AppColors.paper,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            AppLocalizations.of(context)!.goldKeyFooterLabel,
-            style: const TextStyle(
-              color: AppColors.paper,
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
+            const SizedBox(height: 2),
+            Text(
+              AppLocalizations.of(context)!.goldKeyFooterLabel,
+              style: const TextStyle(
+                color: AppColors.paper,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -704,6 +856,7 @@ class _OverlayPrimaryButton extends StatelessWidget {
         onTap: enabled ? onTap : () {},
         child: Container(
           width: double.infinity,
+          alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
@@ -765,6 +918,88 @@ class _CoinCostLabel extends StatelessWidget {
         ),
         Text(')', style: style),
       ],
+    );
+  }
+}
+
+/// Shown when a single booster is tapped at zero charges — a bottom sheet,
+/// one per booster (user instruction: "her tamamlayıcıya özel pencere...
+/// diğer tamamlayıcıların ikonları ve isimleri olmasın") — only [icon]/
+/// [label]/[amount] for the one booster that triggered it, then a
+/// centered "[coin icon] 100" gold button that spends
+/// [GoldKeyConstants.actionCostCoins] to add [amount] more charges of just
+/// that booster.
+class _BoosterRefillSheet extends StatelessWidget {
+  const _BoosterRefillSheet({
+    required this.goldKeyCount,
+    required this.icon,
+    required this.label,
+    required this.amount,
+  });
+
+  final int goldKeyCount;
+  final IconData icon;
+  final String label;
+  final int amount;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final canAfford = goldKeyCount >= GoldKeyConstants.actionCostCoins;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: GlassPanel(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: GamePalette.recordGold, size: 30),
+              const SizedBox(height: 10),
+              Text(
+                l10n.boosterRefillHint,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.paper,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '$amount $label',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.paper,
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 18),
+              _OverlayPrimaryButton(
+                enabled: canAfford,
+                // Centered "(coin icon) 100" (user instruction: the label
+                // must sit dead-center in the button, so this whole `Row`
+                // — not just the text — is centered rather than left-hugged.
+                label: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      PhosphorIconsFill.coin,
+                      color: AppColors.ink,
+                      size: 18,
+                    ),
+                    SizedBox(width: 6),
+                    Text('${GoldKeyConstants.actionCostCoins}'),
+                  ],
+                ),
+                onTap: () => Navigator.of(context).pop(true),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

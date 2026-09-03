@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:bb_block/core/constants/app_constants.dart';
-import 'package:bb_block/core/game_feel/spring_pressable.dart';
 import 'package:bb_block/core/providers/persistence_providers.dart';
 import 'package:bb_block/core/routing/app_router.dart';
 import 'package:bb_block/core/theme/app_theme.dart';
@@ -12,6 +11,7 @@ import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
 import 'package:bb_block/features/home/presentation/widgets/premium_game_button.dart';
 import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
 import 'package:bb_block/features/persistence/domain/player_progress.dart';
+import 'package:bb_block/features/rewarded_ad/presentation/widgets/watch_ad_confirm_sheet.dart';
 import 'package:bb_block/features/settings/presentation/settings_sheet.dart';
 import 'package:bb_block/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
@@ -56,47 +56,38 @@ class HomeScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
+                  // All three top chips grouped together at the top-right
+                  // (user instruction) — Coin balance, Ödüllü Reklam, then
+                  // Ayarlar (now a labeled icon+text button, not icon-only).
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
+                      _CoinChip(
+                        goldKeyCount: progress.goldKeyCount,
+                        onTap: () => _showGoldKeyProgress(context, ref),
+                      ),
+                      const SizedBox(width: 10),
                       _TopChip(
                         icon: PhosphorIcons.filmSlate,
                         label: l10n.rewardedAdChip,
-                        onTap: () => _confirmWatchAd(context),
+                        onTap: () => confirmAndWatchAd(context),
                       ),
-                      Row(
-                        children: [
-                          _CoinChip(
-                            goldKeyCount: progress.goldKeyCount,
-                            onTap: () => _showGoldKeyProgress(context, ref),
-                          ),
-                          const SizedBox(width: 10),
-                          _RoundIconButton(
-                            icon: PhosphorIcons.gear,
-                            onTap: () => SettingsSheet.show(context),
-                          ),
-                        ],
+                      const SizedBox(width: 10),
+                      _TopChip(
+                        icon: PhosphorIcons.gear,
+                        label: l10n.settingsTitle,
+                        onTap: () => SettingsSheet.show(context),
                       ),
                     ],
                   ),
                   // No separate "BB Block" title here — the artwork
                   // already carries its own large title graphic near the
                   // top, and stacking our own text right under it read as
-                  // two competing titles. The best-score readout moves
-                  // down near the buttons instead of floating over the
-                  // character's face.
+                  // two competing titles. The scoreboard has moved to
+                  // Settings (user instruction).
                   const Spacer(),
-                  _BestScores(progress: progress),
-                  const SizedBox(height: 16),
-                  PremiumGameButton(
-                    label: l10n.levelLabel(progress.currentLevel),
-                    icon: PhosphorIconsFill.mountains,
-                    glossTop: const Color(0xFF8DE25C),
-                    glossMid: const Color(0xFF5DBE38),
-                    glossDeep: const Color(0xFF3C9626),
-                    onTap: () => _startLevel(context, ref),
-                  ),
-                  const SizedBox(height: 14),
+                  // Klasik Mod above, Level Mod below (user instruction —
+                  // reversed from the earlier order).
                   PremiumGameButton(
                     label: l10n.classicModeButton,
                     icon: PhosphorIconsFill.crown,
@@ -104,6 +95,15 @@ class HomeScreen extends ConsumerWidget {
                     glossMid: const Color(0xFF2E9FE0),
                     glossDeep: const Color(0xFF1B6FA8),
                     onTap: () => _startClassic(context, ref),
+                  ),
+                  const SizedBox(height: 14),
+                  PremiumGameButton(
+                    label: l10n.levelLabel(progress.currentLevel),
+                    icon: PhosphorIconsFill.mountains,
+                    glossTop: const Color(0xFF8DE25C),
+                    glossMid: const Color(0xFF5DBE38),
+                    glossDeep: const Color(0xFF3C9626),
+                    onTap: () => _startLevel(context, ref),
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -116,20 +116,13 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Future<void> _startClassic(BuildContext context, WidgetRef ref) async {
-    // Board size (framed 8x8 / frameless 10x10) is now a persistent Settings
-    // choice (user instruction) instead of an every-launch sheet — read the
-    // fresh value rather than trusting whatever `progress` the calling
-    // button was built with, same staleness concern as `_startLevel`.
+    // Board size (framed 8x8 / frameless 10x10) is a persistent Settings
+    // choice (user instruction) — the every-launch confirmation sheet was
+    // removed (user instruction), so this reads the fresh value and starts
+    // (or resumes) the round directly.
     final progress = await ref.read(playerProgressControllerProvider.future);
     if (!context.mounted) return;
     final hasFrame = progress.classicHasFrame;
-
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _ClassicStartSheet(hasFrame: hasFrame),
-    );
-    if (confirmed != true || !context.mounted) return;
 
     final savedRound = ref.read(roundSaveRepositoryProvider).load(
           GameModeType.classic,
@@ -149,21 +142,6 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  /// Warning dialog shown before actually navigating to the (test) rewarded
-  /// ad — user instruction: confirm the +100 Coin reward up front, with a
-  /// single gold "Reklam İzle" button, rather than jumping straight into
-  /// the ad screen.
-  Future<void> _confirmWatchAd(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (context) => const _WatchAdConfirmDialog(),
-    );
-    if (confirmed == true && context.mounted) {
-      await context.push(AppRoutes.rewardedAd);
-    }
-  }
-
   Future<void> _showGoldKeyProgress(BuildContext context, WidgetRef ref) async {
     // Same staleness concern as `_startLevel`: re-read fresh rather than
     // trust whatever `progress` the chip was built with.
@@ -173,9 +151,10 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Future<void> _startLevel(BuildContext context, WidgetRef ref) async {
-    // Same "resume exactly as it was" rule as Classic Mode — a round still
-    // in progress takes priority over the Gold Key choice sheet/lock-in
-    // logic below entirely, since that choice was already made for it.
+    // The start-of-round Gold Key choice sheet was removed (user
+    // instruction) — every Level Mode round now starts with a free set of
+    // booster charges (see `BoosterConstants`), so this just resumes a
+    // saved round if there is one, or starts fresh.
     final savedRound = ref.read(roundSaveRepositoryProvider).load(
           GameModeType.level,
         );
@@ -184,54 +163,9 @@ class HomeScreen extends ConsumerWidget {
       return;
     }
 
-    final controller = ref.read(playerProgressControllerProvider.notifier);
-    // Re-read fresh after the load settles rather than trusting whatever
-    // `progress` the calling button was built with — the load may still
-    // have been in flight (falling back to a default PlayerProgress) at
-    // the moment that widget was built.
-    final progress = await ref.read(playerProgressControllerProvider.future);
-    if (!context.mounted) return;
-
-    // A choice already locked in for this exact level (either a fresh
-    // attempt just chose one, or a previous attempt at the same level
-    // failed and is being retried) skips the sheet entirely and reuses it
-    // — no re-asking, no re-spending. See PlayerProgress's doc comment.
-    if (progress.pendingLevelChoiceLevel == progress.currentLevel) {
-      await context.push(
-        AppRoutes.game,
-        extra: GameLaunchConfig(
-          mode: GameModeType.level,
-          levelBoostersUnlocked: progress.pendingLevelBoostersUnlocked,
-        ),
-      );
-      return;
-    }
-
-    // Playing without a key is no longer offered — the sheet's only button
-    // spends one. `null` means it was dismissed instead (or the player had
-    // no key to spend), so no round starts.
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) =>
-          _LevelStartSheet(goldKeyCount: progress.goldKeyCount),
-    );
-    if (confirmed != true || !context.mounted) return;
-
-    final boostersUnlocked = await controller.spendGoldKeyForBoosters();
-    if (!context.mounted) return;
-    await controller.setPendingLevelChoice(
-      level: progress.currentLevel,
-      boostersUnlocked: boostersUnlocked,
-    );
-    if (!context.mounted) return;
-
     await context.push(
       AppRoutes.game,
-      extra: GameLaunchConfig(
-        mode: GameModeType.level,
-        levelBoostersUnlocked: boostersUnlocked,
-      ),
+      extra: const GameLaunchConfig(mode: GameModeType.level),
     );
   }
 }
@@ -259,104 +193,6 @@ class _HomeBackground extends StatelessWidget {
       height: double.infinity,
       cacheWidth: (size.width * dpr).round(),
       cacheHeight: (size.height * dpr).round(),
-    );
-  }
-}
-
-/// A frosted-glass stat row instead of stacked plain text lines — three
-/// compact stat cells (framed best, frameless best, level) separated by
-/// thin dividers, sitting just above the mode buttons rather than floating
-/// mid-screen over the artwork.
-class _BestScores extends StatelessWidget {
-  const _BestScores({required this.progress});
-
-  final PlayerProgress progress;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return GlassPanel(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
-      borderRadius: 18,
-      opacity: 0.4,
-      child: Row(
-        children: [
-          Expanded(
-            child: _StatItem(
-              icon: PhosphorIconsFill.crown,
-              value: '${progress.classicHighScoreFramed}',
-              label: l10n.statFramed,
-            ),
-          ),
-          const _StatDivider(),
-          Expanded(
-            child: _StatItem(
-              icon: PhosphorIconsFill.crown,
-              value: '${progress.classicHighScoreFrameless}',
-              label: l10n.statFrameless,
-            ),
-          ),
-          const _StatDivider(),
-          Expanded(
-            child: _StatItem(
-              icon: PhosphorIconsFill.mountains,
-              value: '${progress.currentLevel}',
-              label: l10n.statLevel,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatItem extends StatelessWidget {
-  const _StatItem({
-    required this.icon,
-    required this.value,
-    required this.label,
-  });
-
-  final IconData icon;
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: GamePalette.recordGold, size: 16),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            color: AppColors.paper,
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            color: AppColors.paper.withValues(alpha: 0.65),
-            fontSize: 11,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatDivider extends StatelessWidget {
-  const _StatDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 38,
-      color: Colors.white.withValues(alpha: 0.16),
     );
   }
 }
@@ -456,52 +292,6 @@ class _GoldKeyProgressSheet extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The "watch ad, earn +100 Coin" warning dialog (user instruction) — a
-/// centered alert rather than a bottom sheet, since the request was
-/// specifically for a "uyarı penceresi". Single gold button; tapping outside
-/// the dialog dismisses it without navigating anywhere (no separate cancel
-/// button was requested).
-class _WatchAdConfirmDialog extends StatelessWidget {
-  const _WatchAdConfirmDialog();
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 28),
-      child: GlassPanel(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              PhosphorIconsFill.coin,
-              color: GamePalette.recordGold,
-              size: 34,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              l10n.watchAdConfirmMessage,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.paper,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 18),
-            _StartChoiceButton(
-              label: Text(l10n.watchAdConfirmButton),
-              prominent: true,
-              onTap: () => Navigator.of(context).pop(true),
-            ),
-          ],
         ),
       ),
     );
@@ -629,256 +419,6 @@ class _CoinGainBadgeState extends State<_CoinGainBadge>
             fontSize: 17,
             shadows: [Shadow(color: Colors.black87, blurRadius: 5)],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Classic Mode's start confirmation — the actual board-size choice now
-/// lives in Settings (user instruction), so this just confirms the current
-/// choice and points the player there if they want to change it. `hasFrame`
-/// drives the button's own label ("(8x8)" / "(10x10)") so it always reflects
-/// whichever size is currently selected.
-class _ClassicStartSheet extends StatelessWidget {
-  const _ClassicStartSheet({required this.hasFrame});
-
-  final bool hasFrame;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final size = hasFrame
-        ? l10n.classicBoardSize8x8
-        : l10n.classicBoardSize10x10;
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: GlassPanel(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                l10n.classicStartSheetHint,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.paper,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 18),
-              _StartChoiceButton(
-                label: Text(l10n.classicStartButton(size)),
-                prominent: true,
-                onTap: () => Navigator.of(context).pop(true),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Level Mode's start-of-round confirmation: spend
-/// [GoldKeyConstants.actionCostCoins] Gold Coins to play this round with one
-/// charge of every booster (never refillable, never carried to the next
-/// level — see `PlayerProgress`'s doc comment). Playing without spending is
-/// no longer offered (user instruction) — with an insufficient balance the
-/// button just stays disabled with an explanatory subtitle, and dismissing
-/// the sheet returns to the home menu without starting a round.
-class _LevelStartSheet extends StatelessWidget {
-  const _LevelStartSheet({required this.goldKeyCount});
-
-  final int goldKeyCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final canUseKey = goldKeyCount >= GoldKeyConstants.actionCostCoins;
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: GlassPanel(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                l10n.levelSheetTitle,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(color: AppColors.paper),
-              ),
-              const SizedBox(height: 10),
-              // The star-bonus hint (user instruction) — deliberately a
-              // tick smaller than the button's own 16px label below it.
-              Text(
-                l10n.levelSheetHint,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.paper.withValues(alpha: 0.75),
-                  fontStyle: FontStyle.italic,
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 20),
-              _StartChoiceButton(
-                label: _CoinCostLabel(
-                  prefix: l10n.startWithBoostersPrefix,
-                  textColor: AppColors.ink,
-                ),
-                subtitle: canUseKey
-                    ? l10n.startWithKeySubtitleHave(goldKeyCount)
-                    : l10n.startWithKeySubtitleNone,
-                prominent: true,
-                onTap: canUseKey
-                    ? () => Navigator.of(context).pop(true)
-                    : null,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The prominent (spend-coins) vs. pale (no boosters) pair from the Level
-/// Mode start sheet — deliberately different weights so the paid option
-/// visually reads as the "better" choice, per user instruction. [label] is
-/// a `Widget` (not a plain string) so it can be a coin-cost `Row` — see
-/// `_CoinCostLabel` — while still inheriting this button's own text style
-/// via `DefaultTextStyle.merge`.
-class _StartChoiceButton extends StatelessWidget {
-  const _StartChoiceButton({
-    required this.label,
-    required this.prominent,
-    required this.onTap,
-    this.subtitle,
-  });
-
-  final Widget label;
-  final String? subtitle;
-  final bool prominent;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = onTap != null;
-    return SpringPressable(
-      onTap: onTap,
-      child: Opacity(
-        opacity: enabled ? 1 : 0.5,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-          decoration: BoxDecoration(
-            color: prominent ? GamePalette.recordGold : AppColors.navy,
-            borderRadius: BorderRadius.circular(14),
-            border: prominent
-                ? null
-                : Border.all(color: AppColors.paper.withValues(alpha: 0.18)),
-            boxShadow: prominent
-                ? [
-                    BoxShadow(
-                      color: GamePalette.recordGold.withValues(alpha: 0.45),
-                      blurRadius: 14,
-                    ),
-                  ]
-                : null,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DefaultTextStyle.merge(
-                style: TextStyle(
-                  color: prominent
-                      ? AppColors.ink
-                      : AppColors.paper.withValues(alpha: 0.6),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-                textAlign: TextAlign.center,
-                child: label,
-              ),
-              if (subtitle != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  subtitle!,
-                  style: TextStyle(
-                    color: prominent
-                        ? AppColors.ink.withValues(alpha: 0.7)
-                        : AppColors.paper.withValues(alpha: 0.4),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// "`prefix` (100 [coin icon])" — user instruction: the button's own
-/// translated text, then a fixed count and the Gold Coin icon embedded
-/// inline, then a closing paren. Inherits its text style from whatever
-/// `DefaultTextStyle` it's placed inside (see `_StartChoiceButton`), so it
-/// automatically matches the surrounding button's color/weight/size.
-class _CoinCostLabel extends StatelessWidget {
-  const _CoinCostLabel({required this.prefix, required this.textColor});
-
-  final String prefix;
-  final Color textColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = DefaultTextStyle.of(context).style;
-    // `Wrap` rather than `Row`: the translated prefix is long enough (TR
-    // especially) to overflow a `Row` on narrower screens — this was a
-    // real overflow bug caught by the widget test suite. `Wrap` just flows
-    // the icon/closing-paren onto a second line instead of erroring.
-    return Wrap(
-      alignment: WrapAlignment.center,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        Text(prefix, style: style),
-        const SizedBox(width: 4),
-        Icon(
-          PhosphorIconsFill.coin,
-          color: textColor,
-          size: (style.fontSize ?? 16) + 2,
-        ),
-        Text(')', style: style),
-      ],
-    );
-  }
-}
-
-
-class _RoundIconButton extends StatelessWidget {
-  const _RoundIconButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.navy,
-      shape: const CircleBorder(),
-      elevation: 3,
-      shadowColor: Colors.black54,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Icon(icon, color: AppColors.paper, size: 18),
         ),
       ),
     );

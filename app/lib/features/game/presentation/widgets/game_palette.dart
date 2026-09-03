@@ -63,8 +63,10 @@ abstract final class GamePalette {
   /// soft shadow.
   static const Color buttonLedge = Color(0xFF321808);
 
-  static const Color previewValid = Color(0x6685C46A);
-  static const Color previewInvalid = Color(0x66D46A5A);
+  // More vivid/saturated than before (user instruction) — the valid/invalid
+  // placement highlight needs to read clearly at a glance while dragging.
+  static const Color previewValid = Color(0xB033D147);
+  static const Color previewInvalid = Color(0xB0EB3B2B);
 
   /// The crown/record badge's gold, brighter than the app-wide accent gold
   /// so it pops against the dark HUD chips specifically.
@@ -76,7 +78,9 @@ abstract final class GamePalette {
   static const Color progressFillDark = Color(0xFFE69D37);
   static const Color progressTrack = Color(0xFF321808);
 
-  static const double draggingSlotOpacity = 0.3;
+  // Fully hidden while dragging (user instruction) — only the board's own
+  // ghost preview should show during a drag, not the tray's own copy.
+  static const double draggingSlotOpacity = 0;
 
   /// A FIXED physical distance above the raw finger the dragged piece
   /// floats (user instruction, explicitly "0.4 inch", explicitly *not*

@@ -53,11 +53,15 @@ abstract final class LevelModeConstants {
 }
 
 abstract final class BoosterConstants {
-  /// Charges of *each* booster granted for a single Level Mode round when
-  /// the player spends a Gold Key at the start-of-round choice — not a
-  /// persistent balance (see CLAUDE.md): unused charges are lost at round
-  /// end, and nothing during the round can add more.
-  static const int unlockedChargesPerRound = 1;
+  /// Charges granted for free at the start of every Level Mode round (user
+  /// instruction: no more up-front Gold Key spend to unlock boosters) — not
+  /// a persistent balance (see CLAUDE.md): unused charges are lost at round
+  /// end, and nothing during the round adds more except spending
+  /// [GoldKeyConstants.actionCostCoins] via the empty-booster refill sheet,
+  /// which resets all three back to these same amounts.
+  static const int initialRotateCharges = 3;
+  static const int initialSwapCharges = 1;
+  static const int initialSingleCellRemoveCharges = 1;
 }
 
 /// User-facing terminology changed from "Altın Anahtar" (Gold Key) to

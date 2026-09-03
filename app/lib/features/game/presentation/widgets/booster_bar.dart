@@ -10,11 +10,10 @@ import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
 /// Level Mode — Classic Mode has no boosters, so callers simply don't mount
 /// this widget there.
 ///
-/// Charges are no longer a persistent, refillable resource (see
-/// `PlayerProgress`'s doc comment) — a button at zero charges is simply
-/// inert for the rest of the round, whether that's because the player
-/// started without a Gold Key (all three start at 0) or already spent the
-/// one charge a key unlocked.
+/// A button at zero charges is no longer dimmed (user instruction: it must
+/// not look disabled) — it just shows "0" and, when tapped, calls that
+/// booster's own `onXEmptyTap` instead of its normal action, which the
+/// caller uses to open a refill sheet specific to that one booster.
 class BoosterBar extends StatelessWidget {
   const BoosterBar({
     required this.rotateCharges,
@@ -24,6 +23,9 @@ class BoosterBar extends StatelessWidget {
     required this.onRotateTap,
     required this.onSwapTap,
     required this.onRemovalTap,
+    required this.onRotateEmptyTap,
+    required this.onSwapEmptyTap,
+    required this.onRemovalEmptyTap,
     super.key,
   });
 
@@ -34,6 +36,11 @@ class BoosterBar extends StatelessWidget {
   final VoidCallback onRotateTap;
   final VoidCallback onSwapTap;
   final VoidCallback onRemovalTap;
+  // Separate purchase entry point per booster (user instruction) — each
+  // only offered once that specific booster reaches zero charges.
+  final VoidCallback onRotateEmptyTap;
+  final VoidCallback onSwapEmptyTap;
+  final VoidCallback onRemovalEmptyTap;
 
   @override
   Widget build(BuildContext context) {
@@ -47,20 +54,20 @@ class BoosterBar extends StatelessWidget {
           icon: PhosphorIconsBold.arrowsClockwise,
           label: l10n.boosterRotate,
           charges: rotateCharges,
-          onTap: rotateCharges > 0 ? onRotateTap : null,
+          onTap: rotateCharges > 0 ? onRotateTap : onRotateEmptyTap,
         ),
         _BoosterButton(
           icon: PhosphorIconsBold.swap,
           label: l10n.boosterSwap,
           charges: swapCharges,
-          onTap: swapCharges > 0 ? onSwapTap : null,
+          onTap: swapCharges > 0 ? onSwapTap : onSwapEmptyTap,
         ),
         _BoosterButton(
           icon: PhosphorIconsBold.bomb,
           label: l10n.boosterErase,
           charges: singleCellRemoveCharges,
           active: removalArmed,
-          onTap: singleCellRemoveCharges > 0 ? onRemovalTap : null,
+          onTap: singleCellRemoveCharges > 0 ? onRemovalTap : onRemovalEmptyTap,
         ),
       ],
     );
@@ -85,66 +92,64 @@ class _BoosterButton extends StatelessWidget {
   final String label;
   final int charges;
   final bool active;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final enabled = onTap != null;
     final borderColor =
         active ? GamePalette.recordGold : GamePalette.panelDarkBorder;
 
-    return Opacity(
-      opacity: enabled ? 1 : 0.45,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SpringPressable(
-            onTap: onTap,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: GamePalette.panelDark,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: borderColor, width: 2),
-                boxShadow: [
-                  const BoxShadow(
-                    color: GamePalette.buttonLedge,
-                    offset: Offset(0, 3),
+    // Deliberately never dimmed, even at zero charges (user instruction) —
+    // a zero-charge tap opens the refill sheet instead of doing nothing.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SpringPressable(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: GamePalette.panelDark,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: borderColor, width: 2),
+              boxShadow: [
+                const BoxShadow(
+                  color: GamePalette.buttonLedge,
+                  offset: Offset(0, 3),
+                ),
+                if (active)
+                  BoxShadow(
+                    color: GamePalette.recordGold.withValues(alpha: 0.55),
+                    blurRadius: 12,
+                    spreadRadius: 1,
                   ),
-                  if (active)
-                    BoxShadow(
-                      color: GamePalette.recordGold.withValues(alpha: 0.55),
-                      blurRadius: 12,
-                      spreadRadius: 1,
-                    ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    icon,
-                    color: active ? GamePalette.recordGold : AppColors.paper,
-                    size: 22,
-                  ),
-                  const SizedBox(width: 8),
-                  _ChargeBadge(charges: charges),
-                ],
-              ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  color: active ? GamePalette.recordGold : AppColors.paper,
+                  size: 22,
+                ),
+                const SizedBox(width: 8),
+                _ChargeBadge(charges: charges),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(
-              color: AppColors.paper.withValues(alpha: 0.85),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
-            ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: AppColors.paper.withValues(alpha: 0.85),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

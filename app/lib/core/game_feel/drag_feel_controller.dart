@@ -43,7 +43,11 @@ import 'package:flutter/widgets.dart';
 class DragFeelController extends ChangeNotifier {
   double tiltRadians = 0;
 
-  static const double maxTiltRadians = 0.06;
+  // Reduced from 0.06 (user instruction: the drag should feel stiffer/more
+  // rigid against the grid, not loose) — a smaller max lean reads as a
+  // firmer, less floppy piece without reintroducing the discontinuous
+  // magnetic-pull bug documented above.
+  static const double maxTiltRadians = 0.03;
 
   void update({double tiltRadians = 0}) {
     if (this.tiltRadians == tiltRadians) return;
