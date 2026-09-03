@@ -705,16 +705,10 @@ void main() {
     });
 
     testWidgets(
-        "the floating drag image moves by exactly the pointer's own delta "
-        'when crossing a cell boundary — regression: a previous "magnetic '
-        'snap" pull nudged the feedback toward the cell it was hovering, '
-        'which read as the piece momentarily sticking/slowing every time it '
-        'crossed into a new cell (user report: "sanki o kareye '
-        'yerleşecekmiş gibi hissediliyor... görünmeyen mıknatıslar '
-        'tarafından tutuluyormuş gibi"). The fix removed that pull outright '
-        '— this asserts the floating piece now tracks the raw finger with '
-        'no extra offset at all, even right at a cell boundary crossing',
-        (tester) async {
+        'the dragged piece renders nothing visible while in flight — only '
+        "the board's own ghost preview shows where it would land (user "
+        'instruction, revised: the piece must be fully invisible for the '
+        'whole drag, not just de-emphasized)', (tester) async {
       useTallSurface(tester);
       final board = boardFromRows(List.filled(10, '.' * 10));
       final shape = shapeById(PieceShapeId.single);
@@ -732,21 +726,8 @@ void main() {
 
       final source = tester.getCenter(find.byType(Draggable<int>));
       final gesture = await tester.startGesture(source);
-      // Long enough for the pick-up spring (~130-150ms) to fully settle,
-      // so its scale stays constant across both measurements below — only
-      // the drag's own translation should differ between them.
       await tester.pump(const Duration(milliseconds: 300));
 
-      Offset feedbackTopLeft() => tester.getTopLeft(
-            find.byWidgetPredicate(
-              (widget) => widget is PieceView && widget.cellSize == cellSize,
-            ),
-          );
-
-      final before = feedbackTopLeft();
-      // A move comfortably within a single cell, well clear of any board
-      // edge, then a second move exactly one cell size further right —
-      // guaranteed to cross into the next column.
       final dragTargetRect = tester.getRect(
         find.byType(DragTarget<int>).first,
       );
@@ -754,23 +735,20 @@ void main() {
         Offset(dragTargetRect.left + cellSize * 3.5, source.dy),
       );
       await tester.pump(const Duration(milliseconds: 16));
-      final afterFirstMove = feedbackTopLeft();
 
-      await gesture.moveBy(const Offset(cellSize, 0));
-      await tester.pump(const Duration(milliseconds: 16));
-      final afterCrossing = feedbackTopLeft();
+      // No `PieceView` at the feedback's own scale is rendered anywhere
+      // during the drag — the tray's resting slot uses a different
+      // (usually smaller) `trayMaxCellSize`, so this only matches a
+      // feedback-scale copy, which should no longer exist at all.
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is PieceView && widget.cellSize == cellSize,
+        ),
+        findsNothing,
+      );
 
       await gesture.up();
       await tester.pump(const Duration(seconds: 1));
-
-      expect(before, isNot(equals(afterFirstMove)));
-      // The tilt (a small rotation, purely a function of pointer delta —
-      // see `DragFeelController`) can shift the measured top-left by a
-      // sub-pixel amount, so this allows a small tolerance — anything near
-      // `cellSize` (tens of pixels) would fail it, which is what the old
-      // "up to 8px" magnetic pull would have done.
-      final dx = afterCrossing.dx - afterFirstMove.dx;
-      expect(dx, closeTo(cellSize, 1.5));
     });
 
     testWidgets(

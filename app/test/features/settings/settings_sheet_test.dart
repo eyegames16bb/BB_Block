@@ -60,6 +60,12 @@ void main() {
     final urlLauncher = FakeUrlLauncherService();
     await tester.pumpWidget(wrap(urlLauncher));
 
+    // The sheet's content has grown enough (in a later session) that the
+    // credit row can sit below the fold of the scrollable sheet — scroll
+    // it into view before tapping instead of assuming it's already
+    // visible.
+    await tester.ensureVisible(find.text(CreditsConstants.publisherName));
+    await tester.pump();
     await tester.tap(find.text(CreditsConstants.publisherName));
     await tester.pump();
 
@@ -90,7 +96,9 @@ void main() {
     await tester.pump();
 
     expect(find.text('Titreşim'), findsNothing);
-    expect(find.byType(Switch), findsOneWidget);
+    // Sound + the "Açıklama Notları" toggle (added in a later session) —
+    // both still real, distinct switches, just no Vibration one anymore.
+    expect(find.byType(Switch), findsNWidgets(2));
   });
 
   testWidgets(

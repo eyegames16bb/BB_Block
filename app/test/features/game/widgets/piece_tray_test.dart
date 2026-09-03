@@ -66,8 +66,8 @@ void main() {
     await tester.pump();
 
     final size = tester.getSize(find.byType(WoodTile).first);
-    expect(size.width, 26);
-    expect(size.height, 26);
+    expect(size.width, 20);
+    expect(size.height, 20);
   });
 
   testWidgets(

@@ -109,46 +109,49 @@ void main() {
     expect(find.text('Level 7'), findsOneWidget);
   });
 
-  testWidgets('BoosterBar is hidden for Classic Mode', (tester) async {
+  testWidgets(
+      'BoosterBar is shown for Classic Mode too (user instruction: shared '
+      'ledger, both modes)', (tester) async {
     await tester.pumpWidget(
       wrap(const GameLaunchConfig(mode: GameModeType.classic)),
-    );
-    await tester.pump();
-
-    expect(find.byType(BoosterBar), findsNothing);
-  });
-
-  testWidgets(
-      'BoosterBar shows zero charges for Level Mode started without a key',
-      (tester) async {
-    await tester.pumpWidget(
-      wrap(
-        const GameLaunchConfig(
-          mode: GameModeType.level,
-        ),
-      ),
     );
     await tester.pump();
     await tester.pump();
 
     expect(find.byType(BoosterBar), findsOneWidget);
+  });
+
+  testWidgets(
+      'BoosterBar reflects the shared, persistent booster ledger in '
+      'PlayerProgress — a fresh install shows 3/1/1', (tester) async {
+    await tester.pumpWidget(
+      wrap(const GameLaunchConfig(mode: GameModeType.level)),
+    );
+    await tester.pump();
+    await tester.pump();
+
     final boosterBar = find.byType(BoosterBar);
-    // All three boosters start at zero unless a Gold Key was spent at the
-    // start-of-round sheet (see GameLaunchConfig.levelBoostersUnlocked).
     expect(
-      find.descendant(of: boosterBar, matching: find.text('0')),
-      findsNWidgets(3),
+      find.descendant(of: boosterBar, matching: find.text('3')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: boosterBar, matching: find.text('1')),
+      findsNWidgets(2),
     );
   });
 
   testWidgets(
-      'BoosterBar shows one charge of every booster when unlocked with a '
-      'Gold Key', (tester) async {
+      'BoosterBar shows whatever the shared ledger holds — Classic Mode '
+      'included, same field as Level Mode (user instruction)',
+      (tester) async {
     await tester.pumpWidget(
       wrap(
-        const GameLaunchConfig(
-          mode: GameModeType.level,
-          levelBoostersUnlocked: true,
+        const GameLaunchConfig(mode: GameModeType.classic),
+        progress: const PlayerProgress(
+          levelRotateCharges: 0,
+          levelSwapCharges: 4,
+          levelSingleCellRemoveCharges: 2,
         ),
       ),
     );
@@ -157,8 +160,16 @@ void main() {
 
     final boosterBar = find.byType(BoosterBar);
     expect(
-      find.descendant(of: boosterBar, matching: find.text('1')),
-      findsNWidgets(3),
+      find.descendant(of: boosterBar, matching: find.text('0')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: boosterBar, matching: find.text('4')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: boosterBar, matching: find.text('2')),
+      findsOneWidget,
     );
   });
 

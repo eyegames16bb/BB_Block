@@ -60,8 +60,9 @@ void main() {
   });
 
   test(
-      'a booster refused in Classic Mode still triggers a light rejection '
-      'pulse and the invalidMove SFX', () {
+      'a booster refused at zero charges still triggers a light rejection '
+      'pulse and the invalidMove SFX (now shared by both modes — Classic '
+      'included, user instruction)', () {
     final haptics = FakeHapticsService();
     final audio = FakeAudioService();
     final container = containerWith(haptics: haptics, audio: audio);
@@ -71,8 +72,15 @@ void main() {
     final controller =
         container.read(gameControllerProvider(config).notifier);
 
-    // Classic Mode never has boosters (boostersEnabled is always false for
-    // it), so this is refused unconditionally — no board setup needed.
+    // A fresh install's shared booster ledger starts at 3 Rotate charges
+    // (see `PlayerProgress.levelRotateCharges`) — burn through all of them
+    // first so the next attempt is genuinely refused at zero.
+    controller.rotateTray();
+    controller.rotateTray();
+    controller.rotateTray();
+    haptics.triggered.clear();
+    audio.playedEffects.clear();
+
     controller.rotateTray();
 
     expect(haptics.triggered, [HapticIntensity.light]);

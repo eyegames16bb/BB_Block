@@ -4,10 +4,12 @@ import 'package:bb_block/core/providers/persistence_providers.dart';
 import 'package:bb_block/core/routing/app_router.dart';
 import 'package:bb_block/features/board/domain/entities/board.dart';
 import 'package:bb_block/features/game/application/game_launch_config.dart';
+import 'package:bb_block/features/game/presentation/widgets/board_grid.dart';
 import 'package:bb_block/features/game_mode/domain/game_mode_strategy.dart';
 import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
 import 'package:bb_block/features/persistence/domain/player_progress.dart';
 import 'package:bb_block/features/persistence/domain/saved_round.dart';
+import 'package:bb_block/features/settings/presentation/settings_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -55,9 +57,8 @@ void main() {
   });
 
   testWidgets(
-      'Klasik Mod shows a start-confirmation sheet reflecting the current '
-      'board-size setting (now a Settings choice, not an every-launch '
-      "picker), and resumes that variant's saved round", (tester) async {
+      'Klasik Mod resumes a saved round directly — the start-confirmation '
+      'sheet was removed (user instruction)', (tester) async {
     addTearDown(() => appRouter.go(AppRoutes.home));
 
     final board = Board.framed();
@@ -86,15 +87,6 @@ void main() {
     await tester.pump();
 
     await tester.tap(find.text('Klasik Mod'));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text('Ayarlar kısmında oyun alanını değiştirebilsin!'),
-      findsOneWidget,
-    );
-    expect(find.text('(8x8) Klasik Mod İle Oyna'), findsOneWidget);
-
-    await tester.tap(find.text('(8x8) Klasik Mod İle Oyna'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
 
@@ -106,31 +98,38 @@ void main() {
   });
 
   testWidgets(
-      'changing the Classic Mode board size in Settings changes the start '
-      "sheet's label the next time Klasik Mod is tapped (user "
-      'instruction: persistent Settings choice, not asked every launch)',
-      (tester) async {
+      'changing the Classic Mode board size in Settings is what a fresh '
+      'Klasik Mod round uses next (user instruction: persistent Settings '
+      'choice, no per-launch sheet anymore)', (tester) async {
     addTearDown(() => appRouter.go(AppRoutes.home));
 
     await tester.pumpWidget(appWith());
     await tester.pump(const Duration(seconds: 3));
     await tester.pump();
 
-    await tester.tap(find.byIcon(PhosphorIcons.gear));
+    await tester.tap(find.text('Ayarlar'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Klasik Mod Ayarı'), findsOneWidget);
+    expect(find.text('Klasik Mod'), findsWidgets);
     await tester.tap(find.text('10x10'));
     await tester.pumpAndSettle();
 
-    // Close the sheet, then open Klasik Mod's start confirmation.
-    await tester.tapAt(const Offset(200, 50));
+    // Dismiss the sheet via its own Navigator rather than an arbitrary
+    // tap coordinate — the sheet's grown taller since this was first
+    // written (more rows), so a fixed offset that used to land on the
+    // scrim can now land on the sheet's own content instead.
+    Navigator.of(tester.element(find.byType(SettingsSheet))).pop();
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Klasik Mod'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
-    expect(find.text('(10x10) Klasik Mod İle Oyna'), findsOneWidget);
+    expect(find.byType(BoardGrid), findsOneWidget);
+    final progress = await ProviderScope.containerOf(
+      tester.element(find.byType(BoardGrid)),
+    ).read(playerProgressControllerProvider.future);
+    expect(progress.classicHasFrame, isFalse);
   });
 
   testWidgets(
@@ -146,9 +145,10 @@ void main() {
     await tester.tap(find.text('Ödüllü Reklam'));
     await tester.pumpAndSettle();
 
-    // The new confirm dialog (user instruction) sits in front of the ad
-    // screen now — confirm it before the ad itself is expected to appear.
-    expect(find.text('Reklam İzle ve +100 Coin Kazan.'), findsOneWidget);
+    // The confirm sheet (user instruction: moved to a bottom sheet, new
+    // wording) sits in front of the ad screen — confirm it before the ad
+    // itself is expected to appear.
+    expect(find.text('Reklam izle ve 100 Coin kazan!'), findsOneWidget);
     await tester.tap(find.text('Reklam İzle'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -186,23 +186,9 @@ void main() {
   });
 
   testWidgets(
-      'a fresh player is asked to confirm spending a Gold Key on first '
-      'Level entry — playing without a key is no longer offered (user '
-      'instruction)', (tester) async {
-    await tester.pumpWidget(appWith());
-    await tester.pump(const Duration(seconds: 3));
-    await tester.pump();
-
-    await tester.tap(find.text('Level 1'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Tamamlayıcılar İle Oyna (100'), findsOneWidget);
-  });
-
-  testWidgets(
-      'Level Mod skips the key-choice sheet and resumes straight into the '
-      'round when a choice is already locked in for the current level '
-      '(user instruction: no re-asking every entry)', (tester) async {
+      'Level 1 starts straight into the round — the Gold Key choice sheet '
+      'was removed (user instruction: boosters are a free, shared ledger '
+      'now, no per-round unlock purchase)', (tester) async {
     // `appRouter` is a top-level singleton shared by every test in this
     // file (and by production `app.dart`) — this test is the only one that
     // performs a real navigation, so it must leave the router back where
@@ -210,14 +196,7 @@ void main() {
     // `/game` location with no `extra`, crashing on rebuild.
     addTearDown(() => appRouter.go(AppRoutes.home));
 
-    await tester.pumpWidget(
-      appWith(
-        progress: const PlayerProgress(
-          tutorialCompleted: true,
-          pendingLevelChoiceLevel: 1,
-        ),
-      ),
-    );
+    await tester.pumpWidget(appWith());
     await tester.pump(const Duration(seconds: 3));
     await tester.pump();
 
@@ -228,12 +207,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
 
-    // The sheet's own title ("Level Mod"/`levelSheetTitle`) is a distinct
-    // string from the home button's live "Level N" counter — its absence
-    // confirms the sheet itself was skipped, not just that its now-removed
-    // "without a key" button is gone.
-    expect(find.text('Level Mod'), findsNothing);
-    expect(find.text('Level 1'), findsOneWidget);
+    expect(find.text('0 / 1000'), findsOneWidget);
   });
 
   testWidgets(
@@ -275,8 +249,11 @@ void main() {
     await tester.tap(find.text('EN'));
     await tester.pumpAndSettle();
 
-    // Closing the sheet returns to the (now English) home screen.
-    await tester.tapAt(const Offset(200, 100));
+    // Closing the sheet returns to the (now English) home screen — via its
+    // own Navigator rather than an arbitrary tap coordinate, which grew
+    // unreliable once the sheet gained more rows (see the board-size test
+    // above for the same fix).
+    Navigator.of(tester.element(find.byType(SettingsSheet))).pop();
     await tester.pumpAndSettle();
 
     expect(find.text('Classic Mode'), findsOneWidget);
@@ -289,8 +266,8 @@ void main() {
   });
 
   testWidgets(
-      'a fresh install sees the interactive tutorial before the home menu '
-      '(user instruction: first launch only)', (tester) async {
+      'a fresh install goes straight to the home menu now — the tutorial '
+      'is temporarily disabled (user instruction)', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -307,13 +284,7 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
     await tester.pump();
 
-    // A positive check that the tutorial is genuinely showing — not just
-    // that home isn't — or this would pass just as well while stuck on
-    // the splash screen (which was never reached because of a bug),
-    // making the negative checks below meaningless.
-    expect(find.text('Atla'), findsOneWidget);
-    expect(find.text('Klasik Mod'), findsNothing);
-    expect(find.text('Level 1'), findsNothing);
+    expect(find.text('Klasik Mod'), findsOneWidget);
   });
 
   testWidgets(
