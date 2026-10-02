@@ -209,7 +209,14 @@ void main() {
     final session = container.read(gameControllerProvider(passedInConfig));
 
     expect(session.score, 77);
-    expect(session.rotateCharges, 1);
+    // Booster charges now come from the shared `PlayerProgress` ledger, not
+    // from the saved round's own frozen snapshot (user instruction — this
+    // was the actual bug behind reports of Classic/Level drifting apart: a
+    // resumed round used to reseed from whatever `rotateCharges` happened
+    // to be saved in *that* round, which could be stale compared to the
+    // shared bank). `containerWith`'s default `PlayerProgress()` starts at
+    // 3, not the saved round's own `rotateCharges: 1`.
+    expect(session.rotateCharges, 3);
   });
 
   test('the saved round is cleared once the round actually ends', () {

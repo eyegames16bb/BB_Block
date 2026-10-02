@@ -1,14 +1,19 @@
 import 'dart:ui';
 
 import 'package:bb_block/core/theme/app_theme.dart';
+import 'package:bb_block/features/game/presentation/widgets/game_palette.dart';
 import 'package:flutter/material.dart';
 
-/// A frosted-glass card — blurred, semi-transparent, with a faint light
-/// border and a soft drop shadow — used everywhere a panel needs to sit
-/// on top of the game's busy wood/photo backgrounds without either being a
-/// flat opaque block or fully see-through. Replaces the plain solid-navy
-/// `Card`/`Container` panels (settings, pause, round-over, choice sheets)
-/// that read as a placeholder-grade "basic" look.
+/// The shared "game panel" chrome — a walnut-gradient wood frame (the same
+/// `woodMid`/`woodDeep` pairing `PremiumGameButton` uses) around a blurred,
+/// warm wood-toned inner fill. Used for every modal card in the app (pause,
+/// round-over, Gold Coin progress, booster sheets, rate-us, ad confirm) so
+/// they all read as one consistent family of in-game wooden signs rather
+/// than generic app dialogs (user instruction: "bütün menüler aynı
+/// tasarımda olsun" — redesigned from the earlier flat navy glass card to
+/// match the Settings screen's wood-plank language). The public API
+/// (`child`/`padding`/`borderRadius`/`opacity`) is unchanged, so every call
+/// site picked this up automatically with no changes of its own.
 class GlassPanel extends StatelessWidget {
   const GlassPanel({
     required this.child,
@@ -23,27 +28,46 @@ class GlassPanel extends StatelessWidget {
   final double borderRadius;
   final double opacity;
 
+  static const double _borderWidth = 5;
+
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: AppColors.navy.withValues(alpha: opacity),
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.35),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              ),
-            ],
+    return Container(
+      padding: const EdgeInsets.all(_borderWidth),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [AppColors.woodMid, AppColors.woodDeep],
+        ),
+        borderRadius: BorderRadius.circular(borderRadius),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
           ),
-          child: child,
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius - _borderWidth),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  GamePalette.bezelLight.withValues(alpha: opacity),
+                  GamePalette.bezelDark.withValues(alpha: opacity),
+                ],
+              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+            child: child,
+          ),
         ),
       ),
     );

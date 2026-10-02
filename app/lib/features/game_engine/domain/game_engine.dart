@@ -328,15 +328,15 @@ class GameEngine {
     ];
   }
 
-  /// Level Mode only: adds [BoosterConstants.initialRotateCharges] more
-  /// Rotate charges — `GameController` is what actually spends the Gold
-  /// Coin that gates this, offered only once Rotate itself reaches zero
-  /// (separate purchase per booster — user instruction).
+  /// Adds [BoosterConstants.refillRotateCharges] more Rotate charges —
+  /// `GameController` is what actually spends the Gold Coin that gates
+  /// this, offered only once Rotate itself reaches zero (separate purchase
+  /// per booster — user instruction). Shared by both modes.
   List<GameEvent> refillRotateBoosters() {
     if (_session.isOver) return const [GameEvent.invalidMove()];
     _session = _session.copyWith(
       rotateCharges:
-          _session.rotateCharges + BoosterConstants.initialRotateCharges,
+          _session.rotateCharges + BoosterConstants.refillRotateCharges,
     );
     return const [GameEvent.trayRefilled()];
   }
@@ -345,7 +345,7 @@ class GameEngine {
   List<GameEvent> refillSwapBoosters() {
     if (_session.isOver) return const [GameEvent.invalidMove()];
     _session = _session.copyWith(
-      swapCharges: _session.swapCharges + BoosterConstants.initialSwapCharges,
+      swapCharges: _session.swapCharges + BoosterConstants.refillSwapCharges,
     );
     return const [GameEvent.trayRefilled()];
   }
@@ -355,20 +355,39 @@ class GameEngine {
     if (_session.isOver) return const [GameEvent.invalidMove()];
     _session = _session.copyWith(
       singleCellRemoveCharges: _session.singleCellRemoveCharges +
-          BoosterConstants.initialSingleCellRemoveCharges,
+          BoosterConstants.refillSingleCellRemoveCharges,
     );
     return const [GameEvent.trayRefilled()];
   }
 
-  /// Classic Mode only: revives a round that just ended in
-  /// `RoundOutcomeClassicGameOver` by drawing a brand-new tray batch — the
-  /// same "first piece is guaranteed to fit somewhere" logic every batch
-  /// draw already relies on (see `WeightedPieceGenerator`), so this always
-  /// hands back a playable board unless it's genuinely fully packed. Score
-  /// and board are untouched; `GameController` is what actually spends the
-  /// Gold Key that gates this.
+  /// The "Satın Al" fourth booster button (user instruction) — refills all
+  /// three boosters at once, for the combined price of buying each one
+  /// separately (see [GoldKeyConstants.allBoostersCostCoins]).
+  List<GameEvent> refillAllBoosters() {
+    if (_session.isOver) return const [GameEvent.invalidMove()];
+    _session = _session.copyWith(
+      rotateCharges:
+          _session.rotateCharges + BoosterConstants.refillRotateCharges,
+      swapCharges: _session.swapCharges + BoosterConstants.refillSwapCharges,
+      singleCellRemoveCharges: _session.singleCellRemoveCharges +
+          BoosterConstants.refillSingleCellRemoveCharges,
+    );
+    return const [GameEvent.trayRefilled()];
+  }
+
+  /// Revives a round that just ended with no valid move — Classic Mode's
+  /// `RoundOutcomeClassicGameOver` or Level Mode's `RoundOutcomeLevelFailed`
+  /// (user instruction: same "continue for coins" mechanic in both modes
+  /// now) — by drawing a brand-new tray batch. Relies on the same "first
+  /// piece is guaranteed to fit somewhere" guarantee every batch draw
+  /// already makes (see `WeightedPieceGenerator`), so this always hands
+  /// back a playable board unless it's genuinely fully packed. Score and
+  /// board are untouched; `GameController` is what actually spends the Gold
+  /// Coin that gates this.
   List<GameEvent> continueRoundWithFreshTray() {
-    if (_session.outcome is! RoundOutcomeClassicGameOver) {
+    final currentOutcome = _session.outcome;
+    if (currentOutcome is! RoundOutcomeClassicGameOver &&
+        currentOutcome is! RoundOutcomeLevelFailed) {
       return const [GameEvent.invalidMove()];
     }
 

@@ -97,8 +97,17 @@ void main() {
 
     expect(find.text('Titreşim'), findsNothing);
     // Sound + the "Açıklama Notları" toggle (added in a later session) —
-    // both still real, distinct switches, just no Vibration one anymore.
-    expect(find.byType(Switch), findsNWidgets(2));
+    // both still real, distinct toggles, just no Vibration one anymore.
+    // The settings screen's redesign (user instruction) replaced the
+    // generic Material `Switch` with a custom carved-wood toggle pill
+    // (`_WoodTogglePill`, private to settings_sheet.dart) — found here by
+    // its runtime type name instead of importing the private class.
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget.runtimeType.toString() == '_WoodTogglePill',
+      ),
+      findsNWidgets(2),
+    );
   });
 
   testWidgets(

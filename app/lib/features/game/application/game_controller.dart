@@ -56,6 +56,21 @@ class GameController extends _$GameController {
     // round's own `config` — not whatever was passed in — becomes the
     // source of truth for the rest of this round, since it's what the
     // engine actually resumes.
+    // Booster charges are a single, persistent ledger shared by *both*
+    // modes (user instruction, revised again — previously each mode/round
+    // tracked its own count, including its own frozen snapshot inside a
+    // resumed `SavedRound`, which is exactly what let Classic and Level
+    // drift apart: finishing a round in one mode updated the shared
+    // ledger, but resuming an in-progress round in the *other* mode used
+    // to reseed from that round's own stale `saved.rotateCharges` snapshot
+    // instead of re-reading the ledger). Every round, resumed or fresh,
+    // now seeds its booster charges from here — never from the saved
+    // round's own copy — so there is genuinely one bank, not two. A
+    // brand-new install starts at `PlayerProgress`'s own defaults (3/1/1);
+    // every change after that (`_apply`) writes straight back here.
+    final progress = ref.read(playerProgressControllerProvider).value ??
+        const PlayerProgress();
+
     final saved = ref.read(roundSaveRepositoryProvider).load(
           config.mode,
           classicHasFrame: config.classicHasFrame,
@@ -69,9 +84,9 @@ class GameController extends _$GameController {
         initialTray: saved.toTrayPieces(),
         initialScore: saved.score,
         initialFrameRemoved: saved.frameRemoved,
-        initialRotateCharges: saved.rotateCharges,
-        initialSwapCharges: saved.swapCharges,
-        initialSingleCellRemoveCharges: saved.singleCellRemoveCharges,
+        initialRotateCharges: progress.levelRotateCharges,
+        initialSwapCharges: progress.levelSwapCharges,
+        initialSingleCellRemoveCharges: progress.levelSingleCellRemoveCharges,
         initialStarTargetRow: saved.starTargetRow,
         initialStarTargetColumn: saved.starTargetColumn,
       );
@@ -79,15 +94,6 @@ class GameController extends _$GameController {
     }
 
     _config = config;
-    // Booster charges are a persistent, per-player ledger shared by *both*
-    // modes now (user instruction, revised again — previously Level Mode
-    // only) — a brand-new install starts at PlayerProgress's own defaults
-    // (3/1/1), and every subsequent round, Classic or Level, continues from
-    // wherever the last one left off (see
-    // `PlayerProgress.levelRotateCharges`'s doc comment and `_apply`, which
-    // writes this ledger back after every change in either mode).
-    final progress = ref.read(playerProgressControllerProvider).value ??
-        const PlayerProgress();
     _engine = GameEngine(
       mode: _strategyFor(config),
       generator: WeightedPieceGenerator(),
@@ -128,6 +134,16 @@ class GameController extends _$GameController {
   Future<void> purchaseSingleCellRemoveBoosters() =>
       _purchaseBooster(_engine.refillSingleCellRemoveBoosters);
 
+  /// The "Satın Al" fourth booster button (user instruction) — refills all
+  /// three boosters at once for [GoldKeyConstants.allBoostersCostCoins].
+  Future<void> purchaseAllBoosters() async {
+    final spent = await ref
+        .read(playerProgressControllerProvider.notifier)
+        .spendGoldKeyForAllBoosters();
+    if (!spent) return;
+    _apply(_engine.refillAllBoosters());
+  }
+
   Future<void> _purchaseBooster(List<GameEvent> Function() apply) async {
     final spent = await ref
         .read(playerProgressControllerProvider.notifier)
@@ -136,13 +152,19 @@ class GameController extends _$GameController {
     _apply(apply());
   }
 
-  /// Classic Mode only: spends a Gold Key to revive a round that just ended
-  /// in "no valid move" — user instruction, offered alongside the existing
-  /// "Play Again"/"Main Menu" options in `GameScreen`'s round-over overlay.
-  /// A no-op (and no key spent) if the round isn't actually in that state,
-  /// or if the player has no Gold Key to spend.
+  /// Spends a Gold Coin to revive a round that just ended with no valid
+  /// move — Classic Mode's "no valid move" game-over or Level Mode's
+  /// equivalent failure (user instruction: same mechanic/economy in both
+  /// modes now), offered alongside the existing "Play Again"/"Main Menu"
+  /// options in `GameScreen`'s round-over overlay. A no-op (and no coin
+  /// spent) if the round isn't actually in one of those states, or if the
+  /// player has no coins to spend.
   Future<void> continueWithGoldKey() async {
-    if (_engine.session.outcome is! RoundOutcomeClassicGameOver) return;
+    final outcome = _engine.session.outcome;
+    if (outcome is! RoundOutcomeClassicGameOver &&
+        outcome is! RoundOutcomeLevelFailed) {
+      return;
+    }
     final spent = await ref
         .read(playerProgressControllerProvider.notifier)
         .spendGoldKeyToContinueRound();

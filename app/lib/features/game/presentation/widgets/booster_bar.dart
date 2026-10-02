@@ -26,6 +26,7 @@ class BoosterBar extends StatelessWidget {
     required this.onRotateEmptyTap,
     required this.onSwapEmptyTap,
     required this.onRemovalEmptyTap,
+    required this.onPurchaseAllTap,
     super.key,
   });
 
@@ -41,6 +42,9 @@ class BoosterBar extends StatelessWidget {
   final VoidCallback onRotateEmptyTap;
   final VoidCallback onSwapEmptyTap;
   final VoidCallback onRemovalEmptyTap;
+  // The fourth "Satın Al" button (user instruction) — always tappable,
+  // opens the buy-all-three sheet regardless of current charges.
+  final VoidCallback onPurchaseAllTap;
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +72,61 @@ class BoosterBar extends StatelessWidget {
           charges: singleCellRemoveCharges,
           active: removalArmed,
           onTap: singleCellRemoveCharges > 0 ? onRemovalTap : onRemovalEmptyTap,
+        ),
+        // The fourth "Satın Al" button (user instruction) — same pill
+        // chrome/size as the other three, but a coin icon instead of a
+        // charge badge, and always tappable (no charge count of its own).
+        _PurchaseAllButton(
+          label: l10n.boosterPurchaseAllLabel,
+          onTap: onPurchaseAllTap,
+        ),
+      ],
+    );
+  }
+}
+
+class _PurchaseAllButton extends StatelessWidget {
+  const _PurchaseAllButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SpringPressable(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: GamePalette.panelDark,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: GamePalette.panelDarkBorder,
+                width: 2,
+              ),
+              boxShadow: const [
+                BoxShadow(color: GamePalette.buttonLedge, offset: Offset(0, 3)),
+              ],
+            ),
+            child: const Icon(
+              PhosphorIconsFill.coin,
+              color: GamePalette.recordGold,
+              size: 22,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: AppColors.paper.withValues(alpha: 0.85),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
+          ),
         ),
       ],
     );

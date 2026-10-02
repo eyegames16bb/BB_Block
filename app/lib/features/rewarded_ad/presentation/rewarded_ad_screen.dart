@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:bb_block/core/game_feel/spring_pressable.dart';
 import 'package:bb_block/core/providers/analytics_providers.dart';
+import 'package:bb_block/core/providers/review_providers.dart';
 import 'package:bb_block/core/theme/app_theme.dart';
-import 'package:bb_block/core/theme/glass_panel.dart';
 import 'package:bb_block/features/game/presentation/widgets/game_palette.dart';
 import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
 import 'package:bb_block/l10n/app_localizations.dart';
@@ -19,8 +19,15 @@ import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
 /// length), with a rotating ring that drains in step with a numeric
 /// countdown (user instruction) standing in for a real ad's playback, then
 /// a close (X) button. Closing it is what counts as "watched" — the Gold
-/// Key is granted right there, before the rating prompt, so skipping or
-/// dismissing the rating afterward doesn't cost the reward.
+/// Coin is granted right there.
+///
+/// The home-made 5-star "rate us" screen that used to follow (a fake
+/// prompt built into the app, with its own "Gönder"/"Geç" buttons) was
+/// removed (user instruction: "yalandan 5 yıldız çıkıp gönder çıksın
+/// istemiyorum") — closing the ad now requests the platform's own *real*
+/// native review prompt instead (Google Play's in-app review sheet /
+/// Apple's `SKStoreReviewController`, via `ReviewService`), the same thing
+/// most real apps show, then returns straight to the game.
 class RewardedAdScreen extends ConsumerStatefulWidget {
   const RewardedAdScreen({super.key});
 
@@ -28,7 +35,7 @@ class RewardedAdScreen extends ConsumerStatefulWidget {
   ConsumerState<RewardedAdScreen> createState() => _RewardedAdScreenState();
 }
 
-enum _AdPhase { playing, closeable, rating }
+enum _AdPhase { playing, closeable }
 
 class _RewardedAdScreenState extends ConsumerState<RewardedAdScreen>
     with SingleTickerProviderStateMixin {
@@ -37,7 +44,6 @@ class _RewardedAdScreenState extends ConsumerState<RewardedAdScreen>
   late final AnimationController _spinController;
   late final Timer _closeableTimer;
   _AdPhase _phase = _AdPhase.playing;
-  int _starRating = 0;
 
   @override
   void initState() {
@@ -56,24 +62,21 @@ class _RewardedAdScreenState extends ConsumerState<RewardedAdScreen>
     super.dispose();
   }
 
-  void _onAdClosed() {
-    // Watching the (test) ad is what earns the reward — independent of
-    // whatever happens in the rating prompt that follows.
+  Future<void> _onAdClosed() async {
+    // Watching the (test) ad is what earns the reward.
     unawaited(
       ref.read(playerProgressControllerProvider.notifier).grantGoldKey(),
     );
     // Feeds the eyegames.net admin dashboard's ad-view counter — logged at
     // the exact same "watched" moment as the reward itself.
     unawaited(ref.read(analyticsServiceProvider).logRewardedAdView());
-    setState(() => _phase = _AdPhase.rating);
-  }
-
-  void _finish() {
-    // Navigator.pop rather than go_router's context.pop — this screen is
-    // always pushed as a plain route (see AppRoutes.rewardedAd), and the
-    // plain Navigator API works whether that route sits under go_router
-    // (production) or a bare MaterialPageRoute (tests).
-    if (context.mounted) Navigator.of(context).pop();
+    // The real, native store review prompt (user instruction) — awaited
+    // (not fire-and-forget) since it's a genuine platform dialog that
+    // should have a chance to show *before* this screen pops, not racing
+    // against it.
+    await ref.read(reviewServiceProvider).requestReview();
+    if (!mounted) return;
+    Navigator.of(context).pop();
   }
 
   @override
@@ -82,21 +85,13 @@ class _RewardedAdScreenState extends ConsumerState<RewardedAdScreen>
     return Scaffold(
       backgroundColor: Colors.black,
       body: Center(
-        child: _phase == _AdPhase.rating
-            ? _RatingPrompt(
-                l10n: l10n,
-                rating: _starRating,
-                onRatingChanged: (value) =>
-                    setState(() => _starRating = value),
-                onDone: _finish,
-              )
-            : _AdContent(
-                spinController: _spinController,
-                totalSeconds: _adDuration.inSeconds,
-                phase: _phase,
-                l10n: l10n,
-                onClose: _onAdClosed,
-              ),
+        child: _AdContent(
+          spinController: _spinController,
+          totalSeconds: _adDuration.inSeconds,
+          phase: _phase,
+          l10n: l10n,
+          onClose: () => unawaited(_onAdClosed()),
+        ),
       ),
     );
   }
@@ -210,120 +205,6 @@ class _AdContent extends StatelessWidget {
           ),
         ],
       ],
-    );
-  }
-}
-
-/// The in-app "rate us" prompt shown right after the ad closes — user
-/// instruction: don't drop straight back to the home menu, ask for a
-/// rating first, but the Gold Key is already granted by this point
-/// regardless of whether the player actually rates.
-class _RatingPrompt extends StatelessWidget {
-  const _RatingPrompt({
-    required this.l10n,
-    required this.rating,
-    required this.onRatingChanged,
-    required this.onDone,
-  });
-
-  final AppLocalizations l10n;
-  final int rating;
-  final ValueChanged<int> onRatingChanged;
-  final VoidCallback onDone;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(28),
-      child: GlassPanel(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              l10n.rateUsTitle,
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(color: AppColors.paper),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              l10n.rateUsBody,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.paper.withValues(alpha: 0.75)),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(5, (index) {
-                final filled = index < rating;
-                return IconButton(
-                  onPressed: () => onRatingChanged(index + 1),
-                  icon: Icon(
-                    filled ? PhosphorIconsFill.star : PhosphorIconsBold.star,
-                    color: GamePalette.recordGold,
-                    size: 30,
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 14),
-            _PromptButton(
-              label: l10n.rateUsSubmit,
-              prominent: true,
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.rateUsThanks)),
-                );
-                onDone();
-              },
-            ),
-            const SizedBox(height: 8),
-            _PromptButton(
-              label: l10n.rateUsSkip,
-              prominent: false,
-              onTap: onDone,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PromptButton extends StatelessWidget {
-  const _PromptButton({
-    required this.label,
-    required this.prominent,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool prominent;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SpringPressable(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: prominent ? GamePalette.recordGold : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-          border: prominent
-              ? null
-              : Border.all(color: Colors.white.withValues(alpha: 0.24)),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: prominent ? AppColors.ink : AppColors.paper,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
     );
   }
 }

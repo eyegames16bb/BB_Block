@@ -175,34 +175,36 @@ class PlayerProgressController extends _$PlayerProgressController {
         );
       });
 
-  /// Spends [GoldKeyConstants.actionCostCoins] to unlock boosters for the
-  /// Level Mode round about to start (one charge of each — see
-  /// `GameLaunchConfig.levelBoostersUnlocked` and `PlayerProgress`'s doc
-  /// comment). Returns whether it succeeded; the caller must not start the
-  /// round as "unlocked" on `false`.
-  Future<bool> spendGoldKeyForBoosters() => _spendGoldKey();
+  /// Spends [GoldKeyConstants.actionCostCoins] to refill a single booster
+  /// (the sheet offered when that one booster is tapped at zero). Returns
+  /// whether it succeeded; the caller must not apply the refill on `false`.
+  Future<bool> spendGoldKeyForBoosters() =>
+      _spendGoldKey(GoldKeyConstants.actionCostCoins);
 
-  /// Spends [GoldKeyConstants.actionCostCoins] to revive a Classic Mode
-  /// round that just ended in "no valid move" (user instruction) — a
-  /// separate, differently-named entry point onto the same underlying
+  /// Spends [GoldKeyConstants.allBoostersCostCoins] for the "Satın Al"
+  /// fourth booster button — refills all three boosters at once.
+  Future<bool> spendGoldKeyForAllBoosters() =>
+      _spendGoldKey(GoldKeyConstants.allBoostersCostCoins);
+
+  /// Spends [GoldKeyConstants.actionCostCoins] to revive a round that just
+  /// ended with no valid move, Classic or Level Mode (user instruction) —
+  /// a separate, differently-named entry point onto the same underlying
   /// spend so each call site's intent stays self-documenting, even though
   /// the mechanics are identical.
-  Future<bool> spendGoldKeyToContinueRound() => _spendGoldKey();
+  Future<bool> spendGoldKeyToContinueRound() =>
+      _spendGoldKey(GoldKeyConstants.actionCostCoins);
 
   /// Returns whether it succeeded; the caller must not proceed on `false`.
   /// Serialized like every other mutator here so two rapid taps can't both
   /// read the same pre-spend `goldKeyCount` and both succeed off a single
   /// spend's worth of coins.
-  Future<bool> _spendGoldKey() => _serialized(() async {
+  Future<bool> _spendGoldKey(int amount) => _serialized(() async {
         final current = state.value ?? const PlayerProgress();
-        if (current.goldKeyCount < GoldKeyConstants.actionCostCoins) {
+        if (current.goldKeyCount < amount) {
           return false;
         }
         await _persist(
-          current.copyWith(
-            goldKeyCount:
-                current.goldKeyCount - GoldKeyConstants.actionCostCoins,
-          ),
+          current.copyWith(goldKeyCount: current.goldKeyCount - amount),
         );
         return true;
       });

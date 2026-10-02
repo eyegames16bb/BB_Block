@@ -3,6 +3,7 @@ import 'package:bb_block/core/providers/analytics_providers.dart';
 import 'package:bb_block/core/providers/audio_providers.dart';
 import 'package:bb_block/core/providers/haptics_providers.dart';
 import 'package:bb_block/core/providers/persistence_providers.dart';
+import 'package:bb_block/core/providers/review_providers.dart';
 import 'package:bb_block/features/persistence/application/player_progress_controller.dart';
 import 'package:bb_block/features/rewarded_ad/presentation/rewarded_ad_screen.dart';
 import 'package:bb_block/l10n/app_localizations.dart';
@@ -15,14 +16,17 @@ import '../../support/fake_analytics_service.dart';
 import '../../support/fake_audio_service.dart';
 import '../../support/fake_game_save_repository.dart';
 import '../../support/fake_haptics_service.dart';
+import '../../support/fake_review_service.dart';
 
 void main() {
   // `PlayerProgressController.build()` touches both services (to sync a
   // persisted mute preference) — without fakes here, the real
   // platform-channel-backed implementations throw under `flutter test`.
   late FakeAnalyticsService analyticsService;
+  late FakeReviewService reviewService;
   ProviderContainer container() {
     analyticsService = FakeAnalyticsService();
+    reviewService = FakeReviewService();
     final container = ProviderContainer(
       overrides: [
         gameSaveRepositoryProvider.overrideWithValue(
@@ -31,6 +35,7 @@ void main() {
         audioServiceProvider.overrideWithValue(FakeAudioService()),
         hapticsServiceProvider.overrideWithValue(FakeHapticsService()),
         analyticsServiceProvider.overrideWithValue(analyticsService),
+        reviewServiceProvider.overrideWithValue(reviewService),
       ],
     );
     addTearDown(container.dispose);
@@ -136,21 +141,25 @@ void main() {
   });
 
   testWidgets(
-      'closing the ad grants a Gold Key immediately and shows the rate-us '
-      'prompt (user instruction: watching the test ad earns the key, '
-      'independent of rating)', (tester) async {
+      'closing the ad grants a Gold Key immediately, requests the real '
+      'native store review prompt, and returns straight to the previous '
+      'screen — the old fake 5-star "rate us" screen was removed (user '
+      'instruction: no fake prompt, a real one instead)', (tester) async {
     final providerContainer = container();
     await providerContainer.read(playerProgressControllerProvider.future);
 
-    await tester.pumpWidget(
-      wrap(providerContainer, home: const RewardedAdScreen()),
-    );
-    await tester.pump(const Duration(seconds: 20, milliseconds: 100));
+    await tester.pumpWidget(openerHarness(providerContainer));
+    await tester.tap(find.text('open'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
+    await tester.pump(const Duration(seconds: 20, milliseconds: 100));
     await tester.tap(find.byIcon(PhosphorIconsBold.x));
     await tester.pumpAndSettle();
 
-    expect(find.text('Bizi Değerlendirin!'), findsOneWidget);
+    // Back to the opener screen directly — no rating UI of our own ever
+    // appeared.
+    expect(find.text('open'), findsOneWidget);
     expect(
       providerContainer
           .read(playerProgressControllerProvider)
@@ -161,51 +170,7 @@ void main() {
     // eyegames.net admin dashboard's ad-view counter — logged at the same
     // moment as the reward.
     expect(analyticsService.rewardedAdViewCount, 1);
-  });
-
-  testWidgets(
-      'skipping the rating still returns to the previous screen '
-      '(user instruction: rating is optional)', (tester) async {
-    await tester.pumpWidget(openerHarness(container()));
-    await tester.tap(find.text('open'));
-    // Not pumpAndSettle(): the spin controller runs a real 20s animation,
-    // and settling would fast-forward straight through the whole ad — a
-    // bounded pump just clears the page-push transition.
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    await tester.pump(const Duration(seconds: 20, milliseconds: 100));
-    await tester.tap(find.byIcon(PhosphorIconsBold.x));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Geç'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('open'), findsOneWidget);
-    expect(find.text('Bizi Değerlendirin!'), findsNothing);
-  });
-
-  testWidgets('submitting a rating shows thanks and still returns home',
-      (tester) async {
-    await tester.pumpWidget(openerHarness(container()));
-    await tester.tap(find.text('open'));
-    // Not pumpAndSettle(): the spin controller runs a real 20s animation,
-    // and settling would fast-forward straight through the whole ad — a
-    // bounded pump just clears the page-push transition.
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    await tester.pump(const Duration(seconds: 20, milliseconds: 100));
-    await tester.tap(find.byIcon(PhosphorIconsBold.x));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byIcon(PhosphorIconsBold.star).first);
-    await tester.tap(find.text('Gönder'));
-    await tester.pump();
-
-    expect(find.text('Teşekkürler!'), findsOneWidget);
-    await tester.pumpAndSettle();
-
-    expect(find.text('open'), findsOneWidget);
+    // The real platform review prompt was requested exactly once.
+    expect(reviewService.requestCount, 1);
   });
 }

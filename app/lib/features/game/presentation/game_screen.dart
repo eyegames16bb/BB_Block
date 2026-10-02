@@ -6,6 +6,7 @@ import 'package:bb_block/core/constants/app_constants.dart';
 import 'package:bb_block/core/game_feel/screen_shake.dart';
 import 'package:bb_block/core/game_feel/spring_pressable.dart';
 import 'package:bb_block/core/providers/game_feel_providers.dart';
+import 'package:bb_block/core/providers/review_providers.dart';
 import 'package:bb_block/core/theme/app_theme.dart';
 import 'package:bb_block/core/theme/glass_panel.dart';
 import 'package:bb_block/core/theme/image_background.dart';
@@ -104,6 +105,25 @@ class _GameScreenState extends ConsumerState<GameScreen>
     );
     if (confirmed != true || !context.mounted) return;
     purchase();
+  }
+
+  /// The fourth "Satın Al" booster button (user instruction) — buys a
+  /// refill of all three boosters at once.
+  Future<void> _showPurchaseAllSheet({
+    required BuildContext context,
+    required GameLaunchConfig config,
+    required int goldKeyCount,
+  }) async {
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) =>
+          _BoosterPurchaseAllSheet(goldKeyCount: goldKeyCount),
+    );
+    if (confirmed != true || !context.mounted) return;
+    await ref
+        .read(gameControllerProvider(config).notifier)
+        .purchaseAllBoosters();
   }
 
   @override
@@ -237,7 +257,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                         label: AppLocalizations.of(context)!
                                             .boosterRotate,
                                         amount: BoosterConstants
-                                            .initialRotateCharges,
+                                            .refillRotateCharges,
                                         purchase: () => ref
                                             .read(gameControllerProvider(
                                                     config)
@@ -253,7 +273,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                         label: AppLocalizations.of(context)!
                                             .boosterSwap,
                                         amount:
-                                            BoosterConstants.initialSwapCharges,
+                                            BoosterConstants.refillSwapCharges,
                                         purchase: () => ref
                                             .read(gameControllerProvider(
                                                     config)
@@ -269,12 +289,18 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                         label: AppLocalizations.of(context)!
                                             .boosterErase,
                                         amount: BoosterConstants
-                                            .initialSingleCellRemoveCharges,
+                                            .refillSingleCellRemoveCharges,
                                         purchase: () => ref
                                             .read(gameControllerProvider(
                                                     config)
                                                 .notifier)
                                             .purchaseSingleCellRemoveBoosters(),
+                                      ),
+                                      onPurchaseAllTap: () =>
+                                          _showPurchaseAllSheet(
+                                        context: context,
+                                        config: config,
+                                        goldKeyCount: progress.goldKeyCount,
                                       ),
                                     ),
                                   ],
@@ -335,6 +361,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
                   config: config,
                   session: session,
                   goldKeyCount: progress.goldKeyCount,
+                  currentLevel: progress.currentLevel,
                 ),
             ],
           ),
@@ -1004,6 +1031,119 @@ class _BoosterRefillSheet extends StatelessWidget {
   }
 }
 
+/// The "Satın Al" fourth booster button's sheet (user instruction) —
+/// refills all three boosters at once for
+/// [GoldKeyConstants.allBoostersCostCoins]. Mirrors the single-booster
+/// [_BoosterRefillSheet]'s chrome (same `GlassPanel`, same gold
+/// `_OverlayPrimaryButton`), but lists all three boosters' own in-game
+/// icons (gold) beside their amounts (white text, centered), straight into
+/// the purchase button below (user instruction: no separate large coin
+/// icon above it, removed after review).
+class _BoosterPurchaseAllSheet extends StatelessWidget {
+  const _BoosterPurchaseAllSheet({required this.goldKeyCount});
+
+  final int goldKeyCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final canAfford = goldKeyCount >= GoldKeyConstants.allBoostersCostCoins;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: GlassPanel(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                l10n.boosterRefillHint,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.paper,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _PurchaseAllRow(
+                icon: PhosphorIconsBold.arrowsClockwise,
+                text: '${BoosterConstants.refillRotateCharges} '
+                    '${l10n.boosterRotate}',
+              ),
+              const SizedBox(height: 8),
+              _PurchaseAllRow(
+                icon: PhosphorIconsBold.swap,
+                text:
+                    '${BoosterConstants.refillSwapCharges} ${l10n.boosterSwap}',
+              ),
+              const SizedBox(height: 8),
+              _PurchaseAllRow(
+                icon: PhosphorIconsBold.bomb,
+                text: '${BoosterConstants.refillSingleCellRemoveCharges} '
+                    '${l10n.boosterErase}',
+              ),
+              const SizedBox(height: 18),
+              _OverlayPrimaryButton(
+                enabled: canAfford,
+                // Left-aligned coin icon then the amount (user
+                // instruction: "butonda sol kısımda coin simgesi olsun
+                // yanında 300 yazsın") — unlike the single-booster sheet's
+                // centered button, this one deliberately keeps the coin on
+                // the left.
+                label: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      PhosphorIconsFill.coin,
+                      color: AppColors.ink,
+                      size: 18,
+                    ),
+                    SizedBox(width: 6),
+                    Text('${GoldKeyConstants.allBoostersCostCoins}'),
+                  ],
+                ),
+                onTap: () => Navigator.of(context).pop(true),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One row of [_BoosterPurchaseAllSheet]'s list — the booster's own
+/// in-game icon in gold, then its refill amount/name in white, centered as
+/// a unit (user instruction).
+class _PurchaseAllRow extends StatelessWidget {
+  const _PurchaseAllRow({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, color: GamePalette.recordGold, size: 20),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: AppColors.paper,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// A "+N" that rises and fades over the header when the score jumps —
 /// covers both a plain placement and a placement-plus-line-clear turn,
 /// since the controller republishes state once per turn with the combined
@@ -1133,11 +1273,15 @@ class _RoundOverlay extends ConsumerStatefulWidget {
     required this.config,
     required this.session,
     required this.goldKeyCount,
+    required this.currentLevel,
   });
 
   final GameLaunchConfig config;
   final GameSession session;
   final int goldKeyCount;
+  // The level just completed (read *before* `GameController._recordOutcome`
+  // advances it — see the review-prompt throttle below).
+  final int currentLevel;
 
   @override
   ConsumerState<_RoundOverlay> createState() => _RoundOverlayState();
@@ -1163,6 +1307,18 @@ class _RoundOverlayState extends ConsumerState<_RoundOverlay> {
               origin: Offset(0.2 + delayMs / 1000, 0),
             ),
           );
+        });
+      }
+      // The real, native store review prompt (user instruction: also after
+      // completing a level, but NOT every single one — only once every 5
+      // completed levels, so it doesn't nag) — deferred a beat so the
+      // player actually sees the "Level Complete" screen and its confetti
+      // first, the prompt only then layering on top, rather than the two
+      // fighting for the very first frame.
+      if (widget.currentLevel % 5 == 0) {
+        Future.delayed(const Duration(milliseconds: 900), () {
+          if (!mounted) return;
+          unawaited(ref.read(reviewServiceProvider).requestReview());
         });
       }
     }
@@ -1237,12 +1393,17 @@ class _RoundOverlayState extends ConsumerState<_RoundOverlay> {
                               onTap: () => context.pop(),
                             )
                           else if (session.outcome
-                              is RoundOutcomeClassicGameOver) ...[
+                                  is RoundOutcomeClassicGameOver ||
+                              session.outcome
+                                  is RoundOutcomeLevelFailed) ...[
                             // User instruction: a prominent gold "spend
                             // coins and continue" option, with the existing
                             // Play Again/Main Menu pair kept but demoted to
                             // plain text so this new option reads as the
-                            // primary path forward.
+                            // primary path forward — now offered in both
+                            // Classic Mode's "no valid move" game-over AND
+                            // Level Mode's equivalent failure, same visual/
+                            // economy.
                             _OverlayPrimaryButton(
                               label: _CoinCostLabel(
                                 prefix: l10n.continueWithCoinsPrefix,

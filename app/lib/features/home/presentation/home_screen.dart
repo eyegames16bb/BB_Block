@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bb_block/core/constants/app_constants.dart';
+import 'package:bb_block/core/game_feel/spring_pressable.dart';
 import 'package:bb_block/core/providers/persistence_providers.dart';
 import 'package:bb_block/core/routing/app_router.dart';
 import 'package:bb_block/core/theme/app_theme.dart';
@@ -90,16 +91,22 @@ class HomeScreen extends ConsumerWidget {
                   // reversed from the earlier order).
                   PremiumGameButton(
                     label: l10n.classicModeButton,
+                    // Crown (user instruction) — replaces the earlier
+                    // puzzle-piece icon.
                     icon: PhosphorIconsFill.crown,
-                    glossTop: const Color(0xFF6FD1F5),
-                    glossMid: const Color(0xFF2E9FE0),
-                    glossDeep: const Color(0xFF1B6FA8),
+                    // Orange (user instruction, reference image) — was
+                    // blue; Level Mod keeps green, so the pair now reads
+                    // orange/green the same way the reference pill trio
+                    // does.
+                    glossTop: const Color(0xFFFFE29A),
+                    glossMid: const Color(0xFFFF9F1C),
+                    glossDeep: const Color(0xFFD97706),
                     onTap: () => _startClassic(context, ref),
                   ),
                   const SizedBox(height: 14),
                   PremiumGameButton(
                     label: l10n.levelLabel(progress.currentLevel),
-                    icon: PhosphorIconsFill.mountains,
+                    icon: PhosphorIconsFill.flagCheckered,
                     glossTop: const Color(0xFF8DE25C),
                     glossMid: const Color(0xFF5DBE38),
                     glossDeep: const Color(0xFF3C9626),
@@ -336,7 +343,6 @@ class _CoinChipState extends ConsumerState<_CoinChip> {
       children: [
         _TopChip(
           icon: PhosphorIconsFill.coin,
-          iconColor: GamePalette.recordGold,
           label: '${widget.goldKeyCount}',
           onTap: widget.onTap,
         ),
@@ -425,42 +431,56 @@ class _CoinGainBadgeState extends State<_CoinGainBadge>
   }
 }
 
+/// The three top-row chips (Coin, Ödüllü Reklam, Ayarlar) — restyled (user
+/// instruction: "bizim tasarıma uygun yap") onto the same carved-wood pill
+/// chrome every other button in the game now uses (`GamePalette`'s
+/// wood-button gradient + solid drop "ledge" shadow, `SpringPressable`'s
+/// press-and-bounce), replacing the old flat navy `Material` chip that
+/// read as generic app-bar UI.
 class _TopChip extends StatelessWidget {
   const _TopChip({
     required this.icon,
     required this.label,
     required this.onTap,
-    this.iconColor = AppColors.paper,
   });
 
   final IconData icon;
-  final Color iconColor;
   final String label;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.navy,
-      borderRadius: BorderRadius.circular(10),
-      elevation: 3,
-      shadowColor: Colors.black54,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: iconColor, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(color: AppColors.paper),
-              ),
-            ],
+    return SpringPressable(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [GamePalette.woodButtonLight, GamePalette.woodButtonDark],
           ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: GamePalette.woodButtonBorder, width: 1.5),
+          boxShadow: const [
+            BoxShadow(color: GamePalette.buttonLedge, offset: Offset(0, 3)),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: GamePalette.recordGold, size: 17),
+            const SizedBox(width: 7),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.paper,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                shadows: [Shadow(color: Colors.black38, blurRadius: 3)],
+              ),
+            ),
+          ],
         ),
       ),
     );

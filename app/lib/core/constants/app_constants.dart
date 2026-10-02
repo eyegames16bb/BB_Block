@@ -53,15 +53,21 @@ abstract final class LevelModeConstants {
 }
 
 abstract final class BoosterConstants {
-  /// Charges granted for free at the start of every Level Mode round (user
-  /// instruction: no more up-front Gold Key spend to unlock boosters) — not
-  /// a persistent balance (see CLAUDE.md): unused charges are lost at round
-  /// end, and nothing during the round adds more except spending
-  /// [GoldKeyConstants.actionCostCoins] via the empty-booster refill sheet,
-  /// which resets all three back to these same amounts.
+  /// Starting charges for a brand-new install's shared booster ledger (see
+  /// `PlayerProgress.levelRotateCharges`'s doc comment) — only ever applies
+  /// once, at the very first round; every round after that continues from
+  /// wherever the shared ledger last left off.
   static const int initialRotateCharges = 3;
   static const int initialSwapCharges = 1;
   static const int initialSingleCellRemoveCharges = 1;
+
+  /// How many charges a single-booster refill purchase (the sheet offered
+  /// when that one booster is tapped at zero) adds — user instruction,
+  /// revised economy. Each costs [GoldKeyConstants.actionCostCoins] on its
+  /// own, bought separately per booster.
+  static const int refillRotateCharges = 30;
+  static const int refillSwapCharges = 10;
+  static const int refillSingleCellRemoveCharges = 10;
 }
 
 /// User-facing terminology changed from "Altın Anahtar" (Gold Key) to
@@ -83,9 +89,14 @@ abstract final class GoldKeyConstants {
   /// ratio under the new 100-coin action cost.
   static const int startingGoldKeyCount = 1000;
 
-  /// What a single Level Mode booster-unlock or Classic Mode continue
-  /// costs (user instruction: both actions cost the same amount).
+  /// What a single-booster refill or a "continue the round" purchase costs
+  /// (user instruction: all of those actions cost the same amount).
   static const int actionCostCoins = 100;
+
+  /// What the "Satın Al" button — buying a refill of all three boosters at
+  /// once — costs (user instruction: exactly the sum of buying each one
+  /// separately, just offered as a single convenience purchase).
+  static const int allBoostersCostCoins = 300;
 
   /// Rewarded-ad payout (user instruction).
   static const int rewardedAdCoins = 100;
